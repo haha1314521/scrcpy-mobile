@@ -26,7 +26,7 @@ jobs:
 
       - name: Install build tools
         run: |
-          brew install meson ninja
+          brew install meson ninja nasm
           brew unlink protobuf 2>/dev/null || true
           curl -fsSL -o /tmp/protoc.zip https://github.com/protocolbuffers/protobuf/releases/download/v28.3/protoc-28.3-osx-universal_binary.zip
           sudo unzip -o /tmp/protoc.zip -d /usr/local 'bin/protoc' 'include/*'
