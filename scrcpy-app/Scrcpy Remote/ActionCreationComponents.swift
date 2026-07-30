@@ -1202,7 +1202,7 @@ struct DraggableVNCKeyItemView: View {
 // MARK: - VNC Key Selector View
 
 struct VNCKeySelectorView: View {
-    private var dismiss = CompatDismiss()
+    var dismiss = CompatDismiss()
     let onKeySelected: (PCKeyCode, [VNCKeyModifier]) -> Void
     let defaultCategory: PCKeyCategory?
     
@@ -1372,7 +1372,7 @@ struct VNCKeySelectorView: View {
 // MARK: - Key Selector View
 
 struct KeySelectorView: View {
-    private var dismiss = CompatDismiss()
+    var dismiss = CompatDismiss()
     let onKeySelected: (AndroidKeyCode) -> Void
     let defaultCategory: KeyCategory?
     

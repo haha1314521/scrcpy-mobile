@@ -80,6 +80,10 @@ extension ScrcpyStatus {
 
 import SwiftUI
 
+enum CompatVerticalEdge {
+    case top, bottom
+}
+
 enum CompatControlSize {
     case mini, small, regular, large
 
@@ -125,9 +129,10 @@ extension View {
         self.foregroundColor(color)
     }
 
-    @ViewBuilder func compatSafeAreaInset<C: View>(edge: VerticalEdge, @ViewBuilder content: @escaping () -> C) -> some View {
+    @ViewBuilder func compatSafeAreaInset<C: View>(edge: CompatVerticalEdge, @ViewBuilder content: @escaping () -> C) -> some View {
         if #available(iOS 15.0, *) {
-            self.safeAreaInset(edge: edge, alignment: .center, spacing: nil) { content() }
+            self.safeAreaInset(edge: edge == .top ? VerticalEdge.top : VerticalEdge.bottom,
+                               alignment: .center, spacing: nil) { content() }
         } else if edge == .top {
             self.overlay(VStack(spacing: 0) { content(); Spacer() })
         } else {

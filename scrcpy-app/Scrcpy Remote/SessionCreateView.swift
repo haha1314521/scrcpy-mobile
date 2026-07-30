@@ -608,7 +608,7 @@ struct SessionCreateView: View {
 
 struct VideoEncoderSelectionView: View {
     @Binding var selectedEncoder: String
-    private var dismiss = CompatDismiss()
+    var dismiss = CompatDismiss()
     @State private var isLoading = false
     @State private var encoders: [ADBMediaEncoder] = []
     @State private var errorMessage: String?
@@ -765,7 +765,7 @@ struct VideoEncoderSelectionView: View {
 
 struct AudioEncoderSelectionView: View {
     @Binding var selectedEncoder: String
-    private var dismiss = CompatDismiss()
+    var dismiss = CompatDismiss()
     @State private var isLoading = false
     @State private var encoders: [ADBMediaEncoder] = []
     @State private var errorMessage: String?
