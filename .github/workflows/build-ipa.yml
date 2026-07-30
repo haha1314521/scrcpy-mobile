@@ -62,6 +62,7 @@ jobs:
           git submodule update --init --recursive
           cmake -S . -B out-host -DCMAKE_BUILD_TYPE=Release -Dprotobuf_BUILD_TESTS=OFF \
             -Dprotobuf_ABSL_PROVIDER=module -Dprotobuf_BUILD_SHARED_LIBS=OFF \
+            -DCMAKE_OSX_ARCHITECTURES=arm64 \
             -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_CXX_STANDARD=17
           cmake --build out-host -j 8
           sudo cmake --install out-host
