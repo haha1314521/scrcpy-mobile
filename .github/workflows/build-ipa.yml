@@ -4,7 +4,6 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ['.github/workflows/build-ipa.yml']
 
 jobs:
   build:
@@ -19,7 +18,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: porting/libtsnet/go.mod
+          go-version: 'stable'
           cache-dependency-path: porting/libtsnet/go.sum
 
       - name: Install build tools
@@ -57,7 +56,9 @@ jobs:
         run: make -C porting vncclient
 
       - name: Build tsnet-forwarder
-        run: make -C porting tsnet-forwarder
+        run: |
+          (cd porting/libtsnet && go mod tidy)
+          make -C porting tsnet-forwarder
 
       - name: Build app (unsigned)
         working-directory: scrcpy-app
