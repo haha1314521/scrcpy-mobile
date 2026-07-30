@@ -60,6 +60,8 @@ jobs:
           git fetch --tags --force
           git checkout v28.3
           git submodule update --init --recursive
+          # absl misdetects arch and injects x86-only flags on arm64 macs - strip them
+          find third_party/abseil-cpp/absl/copts -name '*.cmake' -exec sed -i '' 's/-msse4\.1//g; s/-maes//g' {} +
           cmake -S . -B out-host -DCMAKE_BUILD_TYPE=Release -Dprotobuf_BUILD_TESTS=OFF \
             -Dprotobuf_ABSL_PROVIDER=module -Dprotobuf_BUILD_SHARED_LIBS=OFF \
             -DCMAKE_OSX_ARCHITECTURES=arm64 \
