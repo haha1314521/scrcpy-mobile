@@ -28,10 +28,6 @@ jobs:
         run: |
           brew install meson ninja nasm ffmpeg sdl2 fmt
           brew unlink protobuf 2>/dev/null || true
-          curl -fsSL -o /tmp/protoc.zip https://github.com/protocolbuffers/protobuf/releases/download/v28.3/protoc-28.3-osx-universal_binary.zip
-          sudo unzip -o /tmp/protoc.zip -d /usr/local 'bin/protoc' 'include/*'
-          sudo chmod +x /usr/local/bin/protoc
-          protoc --version
           sudo mkdir -p /usr/local/bin
           sudo curl -fsSL -o /usr/local/bin/gas-preprocessor.pl \
             https://raw.githubusercontent.com/FFmpeg/gas-preprocessor/master/gas-preprocessor.pl
@@ -56,6 +52,26 @@ jobs:
           mkdir -p porting/libs/iphonesimulator/arm64
           mkdir -p porting/libs/iphonesimulator/x86_64
           mkdir -p porting/libs/include
+
+      - name: Build and install host protobuf 28.3
+        if: steps.libcache.outputs.cache-hit != 'true'
+        run: |
+          cd external/adb-mobile/external/protobuf
+          git fetch --tags --force
+          git checkout v28.3
+          git submodule update --init --recursive
+          cmake -S . -B out-host -DCMAKE_BUILD_TYPE=Release -Dprotobuf_BUILD_TESTS=OFF \
+            -Dprotobuf_ABSL_PROVIDER=module -Dprotobuf_BUILD_SHARED_LIBS=OFF \
+            -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_CXX_STANDARD=17
+          cmake --build out-host -j 8
+          sudo cmake --install out-host
+          protoc --version
+
+      - name: Create missing zstd programs stub
+        if: steps.libcache.outputs.cache-hit != 'true'
+        run: |
+          printf '# Stub for iOS cross build - do not build zstd command-line programs\n' \
+            > external/adb-mobile/porting/cmake/CMakeLists.zstd.txt
 
       - name: Build adb-mobile
         if: steps.libcache.outputs.cache-hit != 'true'
