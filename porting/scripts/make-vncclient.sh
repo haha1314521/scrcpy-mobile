@@ -31,7 +31,10 @@ cd build || exit;
 
 cp -av "$porting_root/cmake/CMakeLists.vncserver.txt" "$vncclient_source/CMakeLists.txt";
 cmake -DCMAKE_BUILD_TYPE=Debug .. -DCMAKE_TOOLCHAIN_FILE="$porting_root/../ios-cmake/ios.toolchain.cmake" \
-  -DPLATFORM="$platform" -DWITH_OPENSSL=ON -DWITH_GNUTLS=OFF;
+  -DPLATFORM="$platform" -DWITH_OPENSSL=ON -DWITH_GNUTLS=OFF \
+  -DWITH_GCRYPT=OFF -DWITH_JPEG=OFF -DWITH_LZO=OFF -DWITH_SASL=OFF \
+  -DWITH_PNG=OFF -DWITH_SDL=OFF -DWITH_GTK=OFF -DWITH_LIBSSH2=OFF \
+  -DWITH_FFMPEG=OFF -DWITH_SYSTEMD=OFF -DWITH_EXAMPLES=OFF -DWITH_TESTS=OFF;
 
 cmake --build . --target vncclient;
 
