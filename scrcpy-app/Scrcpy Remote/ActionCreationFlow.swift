@@ -10,7 +10,7 @@ import SwiftUI
 // MARK: - New Action View
 
 struct NewActionView: View {
-    @Environment(\.dismiss) private var dismiss
+    private var dismiss = CompatDismiss()
     @State private var actionName = ""
     @State private var selectedDevice: ScrcpySession? = nil
     @State private var currentStep = 1
@@ -333,7 +333,7 @@ struct NewActionView: View {
 // MARK: - Edit Action View
 
 struct EditActionView: View {
-    @Environment(\.dismiss) private var dismiss
+    private var dismiss = CompatDismiss()
     @State private var actionName: String
     @State private var selectedDevice: ScrcpySession? = nil
     @State private var currentStep = 1

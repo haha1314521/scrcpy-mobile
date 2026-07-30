@@ -536,7 +536,7 @@ struct TailscaleAuthSettingsView: View {
                     Text("1. Visit https://login.tailscale.com/admin/settings/keys")
                         .font(.caption)
                         .foregroundColor(.blue)
-                        .textSelection(.enabled)
+                        .compatTextSelection()
 
                     Text("2. Create a new Auth Key")
                         .font(.caption)
@@ -602,7 +602,7 @@ struct TailscaleAuthSettingsView: View {
                             }
                             .frame(maxWidth: .infinity)
                         }
-                        .buttonStyle(.borderedProminent)
+                        .compatButtonStyleBorderedProminent()
                         .disabled(isGeneratingKey ||
                                   appSettings.tailscaleOAuthClientID.isEmpty ||
                                   appSettings.tailscaleOAuthClientSecret.isEmpty ||
@@ -650,7 +650,7 @@ struct TailscaleAuthSettingsView: View {
                         Text("Visit https://login.tailscale.com/admin/acls/visual/tags")
                             .font(.caption2)
                             .foregroundColor(.blue)
-                            .textSelection(.enabled)
+                            .compatTextSelection()
 
                         Text("Click 'Add Tag' and enter a name like 'scrcpy-remote'")
                             .font(.caption2)
@@ -665,7 +665,7 @@ struct TailscaleAuthSettingsView: View {
                         Text("Visit https://login.tailscale.com/admin/settings/trust-credentials")
                             .font(.caption2)
                             .foregroundColor(.blue)
-                            .textSelection(.enabled)
+                            .compatTextSelection()
 
                         Text("Click 'Credential' -> 'OAuth'")
                             .font(.caption2)
@@ -766,7 +766,7 @@ struct TailscaleAuthSettingsView: View {
                                             Text(tailscaleIPv4)
                                                 .font(.system(.caption, design: .monospaced))
                                                 .foregroundColor(.blue)
-                                                .textSelection(.enabled)
+                                                .compatTextSelection()
                                                 .padding(.horizontal, 8)
                                                 .padding(.vertical, 4)
                                                 .background(Color(.systemGray6))
@@ -783,7 +783,7 @@ struct TailscaleAuthSettingsView: View {
                                             Text(tailscaleIPv6)
                                                 .font(.system(.caption, design: .monospaced))
                                                 .foregroundColor(.blue)
-                                                .textSelection(.enabled)
+                                                .compatTextSelection()
                                                 .padding(.horizontal, 8)
                                                 .padding(.vertical, 4)
                                                 .background(Color(.systemGray6))
@@ -800,7 +800,7 @@ struct TailscaleAuthSettingsView: View {
                                             Text(tailscaleMagicDNS)
                                                 .font(.system(.caption, design: .monospaced))
                                                 .foregroundColor(.purple)
-                                                .textSelection(.enabled)
+                                                .compatTextSelection()
                                                 .padding(.horizontal, 8)
                                                 .padding(.vertical, 4)
                                                 .background(Color(.systemGray6))
@@ -1562,7 +1562,7 @@ struct LogFileDetailView: View {
                 ScrollView {
                     Text(logContent)
                         .font(.system(.caption, design: .monospaced))
-                        .textSelection(.enabled)
+                        .compatTextSelection()
                         .padding()
                 }
                 .background(Color(.systemBackground))
@@ -1662,7 +1662,7 @@ struct DetailedLogsView: View {
             ScrollView {
                 Text(logs)
                     .font(.system(.caption, design: .monospaced))
-                    .textSelection(.enabled)
+                    .compatTextSelection()
                     .padding()
             }
             .background(Color(.systemBackground))
@@ -1749,7 +1749,7 @@ struct ADBKeysManagementView: View {
                     Text(adbClient.getADBHomeDirectory())
                         .font(.system(.caption, design: .monospaced))
                         .foregroundColor(.blue)
-                        .textSelection(.enabled)
+                        .compatTextSelection()
                 }
                 .padding(.vertical, 4)
             }
@@ -1869,14 +1869,11 @@ struct ADBKeysManagementView: View {
                 setStatus("Export failed: \(error.localizedDescription)", isError: true)
             }
         }
-        .alert("⚠️ Generate New ADB Key Pair", isPresented: $showingGenerateAlert) {
-            Button("Cancel", role: .cancel) { }
-            Button("Generate New Keys", role: .destructive) {
-                generateNewKeys()
-            }
-        } message: {
-            Text("This is a destructive operation!\n\n• Your current ADB keys will be permanently deleted\n• All devices previously authorized with your current keys will lose authorization\n• You will need to re-authorize all devices manually\n• This action cannot be undone\n\nAre you sure you want to generate new ADB keys?")
-        }
+        .compatAlert("⚠️ Generate New ADB Key Pair", isPresented: $showingGenerateAlert,
+                     message: "This is a destructive operation!\n\n• Your current ADB keys will be permanently deleted\n• All devices previously authorized with your current keys will lose authorization\n• You will need to re-authorize all devices manually\n• This action cannot be undone\n\nAre you sure you want to generate new ADB keys?",
+                     primaryLabel: "Generate New Keys", primaryIsDestructive: true,
+                     primaryAction: { generateNewKeys() },
+                     cancelLabel: "Cancel")
     }
     
     private func loadKeys() {
@@ -2079,14 +2076,11 @@ struct ADBPairingView: View {
                     }
                     .buttonStyle(PlainButtonStyle())
                 }
-                .alert("Clear Pairing History", isPresented: $showingClearHistoryAlert) {
-                    Button("Cancel", role: .cancel) { }
-                    Button("Clear", role: .destructive) {
-                        appSettings.clearPairingHistory()
-                    }
-                } message: {
-                    Text("This will permanently delete all pairing history. This action cannot be undone.")
-                }
+                .compatAlert("Clear Pairing History", isPresented: $showingClearHistoryAlert,
+                             message: "This will permanently delete all pairing history. This action cannot be undone.",
+                             primaryLabel: "Clear", primaryIsDestructive: true,
+                             primaryAction: { appSettings.clearPairingHistory() },
+                             cancelLabel: "Cancel")
             }
             
             Section(header: Text("Pairing Information")) {
@@ -2293,14 +2287,11 @@ struct SendFilesSettingsView: View {
         .onChange(of: editingPath) { newValue in
             appSettings.sendFilesDefaultPath = newValue
         }
-        .alert("Reset to Default", isPresented: $showingResetAlert) {
-            Button("Cancel", role: .cancel) { }
-            Button("Reset", role: .destructive) {
-                editingPath = defaultPath
-            }
-        } message: {
-            Text("This will reset the path to '\(defaultPath)'.")
-        }
+        .compatAlert("Reset to Default", isPresented: $showingResetAlert,
+                     message: "This will reset the path to '\(defaultPath)'.",
+                     primaryLabel: "Reset", primaryIsDestructive: true,
+                     primaryAction: { editingPath = defaultPath },
+                     cancelLabel: "Cancel")
     }
 }
 

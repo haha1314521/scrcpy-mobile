@@ -1,4 +1,4 @@
-name: Build Scrcpy Remote IPA
+﻿name: Build Scrcpy Remote IPA
 
 on:
   workflow_dispatch:
@@ -41,6 +41,15 @@ jobs:
       - name: Fetch submodule tags
         run: git submodule foreach --recursive 'git fetch --tags --force --prune || true'
 
+      - name: Cache porting libs
+        id: libcache
+        uses: actions/cache@v4
+        with:
+          path: |
+            porting/libs
+            scrcpy/x
+          key: porting-libs-v1-${{ hashFiles('porting/Makefile', 'porting/scripts/**', 'porting/cmake/**', '.gitmodules') }}
+
       - name: Prepare libs directories
         run: |
           mkdir -p porting/libs/iphoneos/arm64
@@ -49,24 +58,31 @@ jobs:
           mkdir -p porting/libs/include
 
       - name: Build adb-mobile
+        if: steps.libcache.outputs.cache-hit != 'true'
         run: make -C porting adb-mobile
 
       - name: Build SDL2
+        if: steps.libcache.outputs.cache-hit != 'true'
         run: make -C porting libsdl
 
       - name: Build FFmpeg
+        if: steps.libcache.outputs.cache-hit != 'true'
         run: make -C porting ffmpeg
 
       - name: Build libscrcpy
+        if: steps.libcache.outputs.cache-hit != 'true'
         run: make -C porting scrcpy
 
       - name: Build OpenSSL
+        if: steps.libcache.outputs.cache-hit != 'true'
         run: make -C porting openssl
 
       - name: Build vncclient
+        if: steps.libcache.outputs.cache-hit != 'true'
         run: make -C porting vncclient
 
       - name: Build tsnet-forwarder
+        if: steps.libcache.outputs.cache-hit != 'true'
         run: |
           (cd porting/libtsnet && go mod tidy)
           make -C porting tsnet-forwarder

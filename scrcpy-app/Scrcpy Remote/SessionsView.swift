@@ -30,7 +30,7 @@ struct ScrcpySession: Codable, Identifiable {
     
     var backgroundColor: LinearGradient {
         // Background color based on UUID to randomize colors
-        let colors: [Color] = [.blue, .cyan, .orange, .pink, .purple, .red, .yellow]
+        let colors: [Color] = [.blue, .compatCyan, .orange, .pink, .purple, .red, .yellow]
         // Convert title to fixed int
         let titleNumber = title.unicodeScalars.map { code in
             Int(code.value)
@@ -129,7 +129,7 @@ struct SessionsView: View {
                                 .offset(y: session.backgroundImageOffset)
                                 .opacity(0.08)
                                 .clipped()
-                                .foregroundStyle(.clear)
+                                .compatForegroundStyle(.clear)
                         }
                         .background(Color.clear)
                         .cornerRadius(10)
@@ -163,7 +163,7 @@ struct SessionsView: View {
                     }
                     .listRowInsets(EdgeInsets())
                     .padding(8)
-                    .listRowSeparator(.hidden)
+                    .compatListRowSeparatorHidden()
                     .contextMenu {
                         Button(action: {
                             onConnectSession?(session)
@@ -191,7 +191,7 @@ struct SessionsView: View {
                         }) {
                             Label("Copy URL Scheme", systemImage: "doc.on.doc")
                         }
-                        Button(role: .destructive, action: {
+                        Button(action: {
                             sessionToDelete = session
                             showingDeleteAlert = true
                         }) {
@@ -204,14 +204,14 @@ struct SessionsView: View {
                 }
                 .listStyle(.plain)
                 .padding(.horizontal, 8)
-                .safeAreaInset(edge: .top) {
+                .compatSafeAreaInset(edge: .top) {
                     Color.clear.frame(height: 2)
                 }
-                .safeAreaInset(edge: .bottom) {
+                .compatSafeAreaInset(edge: .bottom) {
                     Color.clear.frame(height: 2)
                 }
                 .ignoresSafeArea(.container, edges: [.leading, .trailing])
-                .refreshable {
+                .compatRefreshable {
                     // 手动刷新：重置状态并重新测试所有会话
                     await performManualRefresh()
                 }
@@ -256,11 +256,9 @@ struct SessionsView: View {
                 }
             )
         }
-        .alert("URL Scheme Copied", isPresented: $showingCopyConfirmation) {
-            Button("OK") { }
-        } message: {
-            Text("URL scheme has been copied to clipboard:\n\n\(copiedURLScheme)")
-        }
+        .compatAlert("URL Scheme Copied", isPresented: $showingCopyConfirmation,
+                     message: "URL scheme has been copied to clipboard:\n\n\(copiedURLScheme)",
+                     primaryLabel: "OK")
     }
     
     // Create a duplicate session with a new UUID and numbered suffix

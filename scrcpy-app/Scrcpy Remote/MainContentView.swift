@@ -329,20 +329,14 @@ struct MainContentView: View {
                     }
                 }
                 // Migration prompt
-                .alert("Legacy Data Found", isPresented: $showMigrationAlert) {
-                    Button("Migrate") {
-                        performMigration()
-                    }
-                    Button("Skip", role: .cancel) {
-                        declineMigration()
-                    }
-                } message: {
-                    if let deviceInfo = legacyDeviceInfo {
-                        Text("We found device settings from the previous versions:\n\n📱 Device: \(deviceInfo.host):\(deviceInfo.port)\n\nWould you like to migrate this device to the new app? A new ADB device will be created with your previous settings.")
-                    } else {
-                        Text("We found settings from the previous versions. Would you like to migrate them to the new version?")
-                    }
-                }
+                .compatAlert("Legacy Data Found", isPresented: $showMigrationAlert,
+                             message: legacyDeviceInfo.map {
+                                 "We found device settings from the previous versions:\n\n📱 Device: \($0.host):\($0.port)\n\nWould you like to migrate this device to the new app? A new ADB device will be created with your previous settings."
+                             } ?? "We found settings from the previous versions. Would you like to migrate them to the new version?",
+                             primaryLabel: "Migrate",
+                             primaryAction: { performMigration() },
+                             cancelLabel: "Skip",
+                             cancelAction: { declineMigration() })
             }
         } else {
             NavigationView {

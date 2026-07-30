@@ -13,7 +13,7 @@ struct SessionCreateView: View {
     // Local input state so device type reacts instantly
     @State private var hostInput: String = ""
     @State private var portInput: String = ""
-    @Environment(\.dismiss) var dismiss
+    var dismiss = CompatDismiss()
     @EnvironmentObject var appSettings: AppSettings
     @State private var showingTailscaleAuth = false
     @State private var returnedFromTailscaleAuth = false
@@ -426,11 +426,9 @@ struct SessionCreateView: View {
             }
             .environmentObject(appSettings)
         }
-        .alert("Validation Error", isPresented: $showingValidationError) {
-            Button("OK") { }
-        } message: {
-            Text(validationErrorMessage)
-        }
+        .compatAlert("Validation Error", isPresented: $showingValidationError,
+                     message: validationErrorMessage,
+                     primaryLabel: "OK")
         .onChange(of: showingTailscaleAuth) { isShowing in
             if !isShowing && returnedFromTailscaleAuth {
                 // Check if auth key was set after returning from Tailscale Auth
@@ -610,7 +608,7 @@ struct SessionCreateView: View {
 
 struct VideoEncoderSelectionView: View {
     @Binding var selectedEncoder: String
-    @Environment(\.dismiss) private var dismiss
+    private var dismiss = CompatDismiss()
     @State private var isLoading = false
     @State private var encoders: [ADBMediaEncoder] = []
     @State private var errorMessage: String?
@@ -724,14 +722,11 @@ struct VideoEncoderSelectionView: View {
                 .disabled(isLoading)
             }
         }
-        .alert("Detection Failed", isPresented: $showingError) {
-            Button("OK") { }
-            Button("Retry") {
-                detectEncoders()
-            }
-        } message: {
-            Text(errorMessage ?? NSLocalizedString("Failed to detect encoders", comment: "Fallback detection error message"))
-        }
+        .compatAlert("Detection Failed", isPresented: $showingError,
+                     message: errorMessage ?? NSLocalizedString("Failed to detect encoders", comment: "Fallback detection error message"),
+                     primaryLabel: "Retry",
+                     primaryAction: { detectEncoders() },
+                     cancelLabel: "OK")
         .onAppear {
             detectEncoders()
         }
@@ -770,7 +765,7 @@ struct VideoEncoderSelectionView: View {
 
 struct AudioEncoderSelectionView: View {
     @Binding var selectedEncoder: String
-    @Environment(\.dismiss) private var dismiss
+    private var dismiss = CompatDismiss()
     @State private var isLoading = false
     @State private var encoders: [ADBMediaEncoder] = []
     @State private var errorMessage: String?
@@ -883,14 +878,11 @@ struct AudioEncoderSelectionView: View {
                 .disabled(isLoading)
             }
         }
-        .alert("Detection Failed", isPresented: $showingError) {
-            Button("OK") { }
-            Button("Retry") {
-                detectEncoders()
-            }
-        } message: {
-            Text(errorMessage ?? NSLocalizedString("Failed to detect encoders", comment: "Fallback detection error message"))
-        }
+        .compatAlert("Detection Failed", isPresented: $showingError,
+                     message: errorMessage ?? NSLocalizedString("Failed to detect encoders", comment: "Fallback detection error message"),
+                     primaryLabel: "Retry",
+                     primaryAction: { detectEncoders() },
+                     cancelLabel: "OK")
         .onAppear {
             detectEncoders()
         }

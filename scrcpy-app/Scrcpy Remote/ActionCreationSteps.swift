@@ -23,7 +23,7 @@ struct StepIndicatorView: View {
                     Rectangle()
                         .fill(
                             step <= currentStep 
-                            ? LinearGradient(colors: [Color.blue, Color.cyan], startPoint: .leading, endPoint: .trailing)
+                            ? LinearGradient(colors: [Color.blue, Color.compatCyan], startPoint: .leading, endPoint: .trailing)
                             : LinearGradient(colors: [Color.gray.opacity(0.2)], startPoint: .leading, endPoint: .trailing)
                         )
                         .frame(height: 6)
@@ -46,7 +46,7 @@ struct StepIndicatorView: View {
                             Circle()
                                 .fill(
                                     step <= currentStep 
-                                    ? LinearGradient(colors: [Color.blue, Color.cyan], startPoint: .topLeading, endPoint: .bottomTrailing)
+                                    ? LinearGradient(colors: [Color.blue, Color.compatCyan], startPoint: .topLeading, endPoint: .bottomTrailing)
                                     : LinearGradient(colors: [Color.gray.opacity(0.3)], startPoint: .topLeading, endPoint: .bottomTrailing)
                                 )
                                 .frame(width: 32, height: 32)
@@ -668,7 +668,7 @@ struct Step3View: View {
                     .padding()
                     .background(
                         !actionName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                        ? LinearGradient(colors: [Color.blue, Color.cyan], startPoint: .leading, endPoint: .trailing)
+                        ? LinearGradient(colors: [Color.blue, Color.compatCyan], startPoint: .leading, endPoint: .trailing)
                         : LinearGradient(colors: [Color.gray], startPoint: .leading, endPoint: .trailing)
                     )
                     .cornerRadius(12)

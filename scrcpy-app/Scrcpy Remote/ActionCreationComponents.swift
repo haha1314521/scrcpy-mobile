@@ -342,8 +342,8 @@ struct ADBInputKeysConfigView: View {
                     }
                     .disabled(config.intervalMs >= 5000)
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.mini)
+                .compatButtonStyleBorderedProminent()
+                .compatControlSize(.mini)
                 
                 Spacer()
             }
@@ -659,11 +659,11 @@ struct ADBShellConfigView: View {
                                 .font(.caption)
                         }
                     }
-                    .buttonStyle(.bordered)
-                    .controlSize(.mini)
+                    .compatButtonStyleBordered()
+                    .compatControlSize(.mini)
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.mini)
+                .compatButtonStyleBorderedProminent()
+                .compatControlSize(.mini)
             }
             .padding(.vertical, 4)
             
@@ -952,8 +952,8 @@ struct VNCInputKeysConfigView: View {
                     }
                     .disabled(config.intervalMs >= 5000)
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.mini)
+                .compatButtonStyleBorderedProminent()
+                .compatControlSize(.mini)
                 
                 Spacer()
             }
@@ -1202,7 +1202,7 @@ struct DraggableVNCKeyItemView: View {
 // MARK: - VNC Key Selector View
 
 struct VNCKeySelectorView: View {
-    @Environment(\.dismiss) private var dismiss
+    private var dismiss = CompatDismiss()
     let onKeySelected: (PCKeyCode, [VNCKeyModifier]) -> Void
     let defaultCategory: PCKeyCategory?
     
@@ -1372,7 +1372,7 @@ struct VNCKeySelectorView: View {
 // MARK: - Key Selector View
 
 struct KeySelectorView: View {
-    @Environment(\.dismiss) private var dismiss
+    private var dismiss = CompatDismiss()
     let onKeySelected: (AndroidKeyCode) -> Void
     let defaultCategory: KeyCategory?
     

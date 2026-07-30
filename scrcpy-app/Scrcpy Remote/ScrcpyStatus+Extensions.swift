@@ -72,4 +72,117 @@ extension ScrcpyStatus {
             return "Unknown (\(self.rawValue))"
         }
     }
-} 
+}
+
+// MARK: - iOS 14 compatibility shims
+// The UI below was written against iOS 15 SwiftUI APIs; these wrappers keep the
+// original behavior on iOS 15+ and degrade gracefully on iOS 14.
+
+import SwiftUI
+
+enum CompatControlSize {
+    case mini, small, regular, large
+
+    @available(iOS 15.0, *)
+    var native: ControlSize {
+        switch self {
+        case .mini: return .mini
+        case .small: return .small
+        case .regular: return .regular
+        case .large: return .large
+        }
+    }
+}
+
+extension View {
+    @ViewBuilder func compatTextSelection() -> some View {
+        if #available(iOS 15.0, *) { self.textSelection(.enabled) } else { self }
+    }
+
+    @ViewBuilder func compatButtonStyleBorderedProminent() -> some View {
+        if #available(iOS 15.0, *) { self.buttonStyle(.borderedProminent) } else { self }
+    }
+
+    @ViewBuilder func compatButtonStyleBordered() -> some View {
+        if #available(iOS 15.0, *) { self.buttonStyle(.bordered) } else { self }
+    }
+
+    @ViewBuilder func compatControlSize(_ size: CompatControlSize) -> some View {
+        if #available(iOS 15.0, *) { self.controlSize(size.native) } else { self }
+    }
+
+    @ViewBuilder func compatRefreshable(action: @escaping () async -> Void) -> some View {
+        if #available(iOS 15.0, *) {
+            self.refreshable { await action() }
+        } else { self }
+    }
+
+    @ViewBuilder func compatListRowSeparatorHidden() -> some View {
+        if #available(iOS 15.0, *) { self.listRowSeparator(.hidden) } else { self }
+    }
+
+    @ViewBuilder func compatForegroundStyle(_ color: Color) -> some View {
+        self.foregroundColor(color)
+    }
+
+    @ViewBuilder func compatSafeAreaInset<C: View>(edge: VerticalEdge, @ViewBuilder content: @escaping () -> C) -> some View {
+        if #available(iOS 15.0, *) {
+            self.safeAreaInset(edge: edge, alignment: .center, spacing: nil) { content() }
+        } else if edge == .top {
+            self.overlay(VStack(spacing: 0) { content(); Spacer() })
+        } else {
+            self.overlay(VStack(spacing: 0) { Spacer(); content() })
+        }
+    }
+
+    /// iOS 15 style `.alert(_:isPresented:actions:message:)` replacement built on
+    /// the iOS 14 `Alert` API. Supports one or two buttons.
+    @ViewBuilder func compatAlert(_ title: String,
+                                  isPresented: Binding<Bool>,
+                                  message: String? = nil,
+                                  primaryLabel: String = "OK",
+                                  primaryIsDestructive: Bool = false,
+                                  primaryAction: (() -> Void)? = nil,
+                                  cancelLabel: String? = nil,
+                                  cancelAction: (() -> Void)? = nil) -> some View {
+        self.alert(isPresented: isPresented) {
+            let messageText = message.map { Text($0) }
+            let primary: Alert.Button = primaryIsDestructive
+                ? .destructive(Text(primaryLabel), action: primaryAction)
+                : .default(Text(primaryLabel), action: primaryAction)
+            if let cancelLabel = cancelLabel {
+                return Alert(title: Text(title), message: messageText,
+                             primaryButton: primary,
+                             secondaryButton: .cancel(Text(cancelLabel), action: cancelAction))
+            }
+            return Alert(title: Text(title), message: messageText, dismissButton: primary)
+        }
+    }
+}
+
+/// iOS 15 `Button(_:role:action:)` replacement.
+func CompatButton(_ title: String, destructive: Bool = false, action: @escaping () -> Void) -> some View {
+    Group {
+        if #available(iOS 15.0, *) {
+            Button(title, role: destructive ? .destructive : nil, action: action)
+        } else {
+            Button(action: action) {
+                Text(title).foregroundColor(destructive ? .red : nil)
+            }
+        }
+    }
+}
+
+extension Color {
+    /// `Color.cyan` requires iOS 15; same RGB value on all systems.
+    static var compatCyan: Color { Color(red: 0.333, green: 0.784, blue: 0.980) }
+}
+
+/// `@Environment(\.dismiss)` replacement usable from iOS 14.
+struct CompatDismiss: DynamicProperty {
+    @Environment(\.presentationMode) private var presentationMode
+
+    func callAsFunction() {
+        presentationMode.wrappedValue.dismiss()
+    }
+}

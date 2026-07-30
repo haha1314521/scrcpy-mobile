@@ -50,14 +50,11 @@ struct Scrcpy_RemoteApp: App {
                     _ = schemeManager.handleURL(url)
                 }
                 // 显示 scheme 连接提示
-                .alert("URL Scheme Connection", 
-                       isPresented: $schemeManager.shouldShowConnectionAlert) {
-                    Button("OK") {
-                        schemeManager.shouldShowConnectionAlert = false
-                    }
-                } message: {
-                    Text(schemeManager.connectionMessage)
-                }
+                .compatAlert("URL Scheme Connection",
+                             isPresented: $schemeManager.shouldShowConnectionAlert,
+                             message: schemeManager.connectionMessage,
+                             primaryLabel: "OK",
+                             primaryAction: { schemeManager.shouldShowConnectionAlert = false })
         }
     }
     

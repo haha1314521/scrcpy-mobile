@@ -1174,7 +1174,7 @@ struct ActionsView: View {
                             }) {
                                 Label("Copy URL Scheme", systemImage: "link")
                             }
-                            Button(role: .destructive, action: {
+                            Button(action: {
                                 actionToDelete = action
                                 showingDeleteAlert = true
                             }) {
@@ -1196,45 +1196,36 @@ struct ActionsView: View {
                 actionManager.saveAction(updatedAction)
             }
         }
-        .alert("Delete Action", isPresented: $showingDeleteAlert) {
-            Button("Delete", role: .destructive) {
-                if let action = actionToDelete {
-                    actionManager.deleteAction(id: action.id)
-                }
-                actionToDelete = nil
-            }
-            Button("Cancel", role: .cancel) {
-                actionToDelete = nil
-            }
-        } message: {
-            if let action = actionToDelete {
-                Text("Are you sure you want to delete '\(action.name)'?")
-            }
-        }
-        .alert("Execute Action", isPresented: $showingExecutionAlert) {
-            Button("Execute", role: .none) {
-                if let callback = confirmationCallback {
-                    callback()
-                }
-                actionToExecute = nil
-                confirmationCallback = nil
-            }
-            Button("Cancel", role: .cancel) {
-                actionToExecute = nil
-                confirmationCallback = nil
-            }
-        } message: {
-            if let action = actionToExecute {
-                Text(getActionExecutionSummary(action))
-            }
-        }
-        .alert("URL Scheme Copied", isPresented: $showingCopyAlert) {
-            Button("OK", role: .cancel) {
-                copiedURLScheme = ""
-            }
-        } message: {
-            Text("URL Scheme has been copied to clipboard:\n\n\(copiedURLScheme)")
-        }
+        .compatAlert("Delete Action", isPresented: $showingDeleteAlert,
+                     message: actionToDelete.map { "Are you sure you want to delete '\($0.name)'?" },
+                     primaryLabel: "Delete", primaryIsDestructive: true,
+                     primaryAction: {
+                         if let action = actionToDelete {
+                             actionManager.deleteAction(id: action.id)
+                         }
+                         actionToDelete = nil
+                     },
+                     cancelLabel: "Cancel",
+                     cancelAction: { actionToDelete = nil })
+        .compatAlert("Execute Action", isPresented: $showingExecutionAlert,
+                     message: actionToExecute.map { getActionExecutionSummary($0) },
+                     primaryLabel: "Execute",
+                     primaryAction: {
+                         if let callback = confirmationCallback {
+                             callback()
+                         }
+                         actionToExecute = nil
+                         confirmationCallback = nil
+                     },
+                     cancelLabel: "Cancel",
+                     cancelAction: {
+                         actionToExecute = nil
+                         confirmationCallback = nil
+                     })
+        .compatAlert("URL Scheme Copied", isPresented: $showingCopyAlert,
+                     message: "URL Scheme has been copied to clipboard:\n\n\(copiedURLScheme)",
+                     primaryLabel: "OK",
+                     primaryAction: { copiedURLScheme = "" })
         .sheet(item: $deviceSelectorData) { data in
             DeviceSelectorSheet(
                 action: data.action,
