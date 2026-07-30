@@ -5,6 +5,9 @@ on:
   push:
     branches: [main]
 
+env:
+  CMAKE_POLICY_VERSION_MINIMUM: '3.5'
+
 jobs:
   build:
     runs-on: macos-15
@@ -34,6 +37,9 @@ jobs:
             https://raw.githubusercontent.com/FFmpeg/gas-preprocessor/master/gas-preprocessor.pl
           sudo chmod +x /usr/local/bin/gas-preprocessor.pl
           xcodebuild -version
+
+      - name: Fetch submodule tags
+        run: git submodule foreach --recursive 'git fetch --tags --force --prune || true'
 
       - name: Prepare libs directories
         run: |
