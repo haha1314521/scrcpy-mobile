@@ -1,0 +1,95 @@
+name: Build Scrcpy Remote IPA
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/build-ipa.yml']
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 240
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: porting/libtsnet/go.mod
+          cache-dependency-path: porting/libtsnet/go.sum
+
+      - name: Install build tools
+        run: |
+          brew install meson ninja
+          sudo mkdir -p /usr/local/bin
+          sudo curl -fsSL -o /usr/local/bin/gas-preprocessor.pl \
+            https://raw.githubusercontent.com/FFmpeg/gas-preprocessor/master/gas-preprocessor.pl
+          sudo chmod +x /usr/local/bin/gas-preprocessor.pl
+          xcodebuild -version
+
+      - name: Prepare libs directories
+        run: |
+          mkdir -p porting/libs/iphoneos/arm64
+          mkdir -p porting/libs/iphonesimulator/arm64
+          mkdir -p porting/libs/iphonesimulator/x86_64
+          mkdir -p porting/libs/include
+
+      - name: Build adb-mobile
+        run: make -C porting adb-mobile
+
+      - name: Build SDL2
+        run: make -C porting libsdl
+
+      - name: Build FFmpeg
+        run: make -C porting ffmpeg
+
+      - name: Build libscrcpy
+        run: make -C porting scrcpy
+
+      - name: Build OpenSSL
+        run: make -C porting openssl
+
+      - name: Build vncclient
+        run: make -C porting vncclient
+
+      - name: Build tsnet-forwarder
+        run: make -C porting tsnet-forwarder
+
+      - name: Build app (unsigned)
+        working-directory: scrcpy-app
+        run: |
+          xcodebuild \
+            -project "Scrcpy Remote.xcodeproj" \
+            -scheme "Scrcpy Remote" \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            -derivedDataPath build/DerivedData \
+            -skipPackagePluginValidation \
+            -skipMacroValidation \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY= \
+            build
+
+      - name: Package IPA
+        run: |
+          set -x
+          APP_PATH=$(find scrcpy-app/build/DerivedData/Build/Products -maxdepth 2 -name "*.app" -type d | grep -i iphoneos | head -1)
+          echo "Found app: $APP_PATH"
+          VERSION=$(/usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" "$APP_PATH/Info.plist" || echo "unknown")
+          mkdir -p out/Payload
+          cp -R "$APP_PATH" out/Payload/
+          cd out
+          zip -qry "Scrcpy-Remote-v${VERSION}-unsigned.ipa" Payload
+          ls -la
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: scrcpy-remote-ipa
+          path: out/*.ipa
+          if-no-files-found: error
