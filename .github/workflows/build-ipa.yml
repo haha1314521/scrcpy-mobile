@@ -135,6 +135,8 @@ jobs:
           set -x
           APP_PATH=$(find scrcpy-app/build/DerivedData/Build/Products -maxdepth 2 -name "*.app" -type d | grep -i iphoneos | head -1)
           echo "Found app: $APP_PATH"
+          echo "--- SecTrust import binding (should be weak-import) ---"
+          xcrun dyld_info -imports "$APP_PATH/Scrcpy Remote" 2>/dev/null | grep -i sectrust || echo "(no sectrust import lines)"
           VERSION=$(/usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" "$APP_PATH/Info.plist" || echo "unknown")
           mkdir -p out/Payload
           cp -R "$APP_PATH" out/Payload/

@@ -814,6 +814,8 @@
 				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/../porting/libs/$(PLATFORM_NAME)/$(ARCHS)";
 				MARKETING_VERSION = 4.4.0;
 				OTHER_LDFLAGS = (
+					"-weak_framework",
+					Security,
 					"-ladb-full",
 					"-lscrcpy",
 					"-ltsnet-forwarder",
@@ -872,6 +874,8 @@
 				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/../porting/libs/$(PLATFORM_NAME)/$(ARCHS)";
 				MARKETING_VERSION = 4.4.0;
 				OTHER_LDFLAGS = (
+					"-weak_framework",
+					Security,
 					"-ladb-full",
 					"-lscrcpy",
 					"-ltsnet-forwarder",
