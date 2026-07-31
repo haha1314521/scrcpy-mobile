@@ -177,17 +177,45 @@
             NSDate *overallStartTime = [NSDate date];
             LOG_DEBUG("Test started at: %s", [[overallStartTime description] UTF8String]);
             
-            // Create socket
+            // Resolve hostname first - getaddrinfo supports both IPv4 (A) and
+            // IPv6 (AAAA) records; the legacy gethostbyname is IPv4-only and
+            // always fails for IPv6-only DDNS hosts
+            LOG_DEBUG("Resolving hostname: %s", [self.hostName UTF8String]);
+            struct addrinfo hints;
+            struct addrinfo *resolved = NULL;
+            memset(&hints, 0, sizeof(hints));
+            hints.ai_family = AF_UNSPEC;
+            hints.ai_socktype = SOCK_STREAM;
+            hints.ai_protocol = IPPROTO_TCP;
+            int gaiResult = getaddrinfo(self.hostName.UTF8String, self.port.UTF8String, &hints, &resolved);
+            if (gaiResult != 0 || resolved == NULL) {
+                LOG_DEBUG("Error: Failed to resolve hostname (getaddrinfo: %s)", gai_strerror(gaiResult));
+                if (resolved) { freeaddrinfo(resolved); }
+                error = [NSError errorWithDomain:@"ADBLatencyTester"
+                                            code:2003
+                                        userInfo:@{NSLocalizedDescriptionKey: @"Failed to resolve host"}];
+                return;
+            }
+
+            // Copy first result then release the list (safe on early returns)
+            struct sockaddr_storage serverAddr;
+            socklen_t serverAddrLen = resolved->ai_addrlen;
+            int addrFamily = resolved->ai_family;
+            memcpy(&serverAddr, resolved->ai_addr, resolved->ai_addrlen);
+            freeaddrinfo(resolved);
+            LOG_DEBUG("Hostname resolved (family: %s)", addrFamily == AF_INET6 ? "IPv6" : "IPv4");
+
+            // Create socket matching the resolved address family
             LOG_DEBUG("Creating socket...");
-            socketFd = socket(AF_INET, SOCK_STREAM, 0);
+            socketFd = socket(addrFamily, SOCK_STREAM, 0);
             if (socketFd < 0) {
                 LOG_DEBUG("Error: Failed to create socket (errno: %d)", errno);
-                error = [NSError errorWithDomain:@"ADBLatencyTester" 
-                                            code:2001 
+                error = [NSError errorWithDomain:@"ADBLatencyTester"
+                                            code:2001
                                         userInfo:@{NSLocalizedDescriptionKey: @"Failed to create socket"}];
                 return;
             }
-            
+
             // Set socket timeout
             LOG_DEBUG("Setting socket timeout to 10 seconds...");
             struct timeval timeout;
@@ -195,37 +223,21 @@
             timeout.tv_usec = 0;
             if (setsockopt(socketFd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) {
                 LOG_DEBUG("Error: Failed to set socket timeout (errno: %d)", errno);
-                error = [NSError errorWithDomain:@"ADBLatencyTester" 
-                                            code:2002 
+                error = [NSError errorWithDomain:@"ADBLatencyTester"
+                                            code:2002
                                         userInfo:@{NSLocalizedDescriptionKey: @"Failed to set socket timeout"}];
                 return;
             }
-            
-            // Resolve hostname
-            LOG_DEBUG("Resolving hostname: %s", [self.hostName UTF8String]);
-            struct hostent *server = gethostbyname(self.hostName.UTF8String);
-            if (server == NULL) {
-                LOG_DEBUG("Error: Failed to resolve hostname (h_errno: %d)", h_errno);
-                error = [NSError errorWithDomain:@"ADBLatencyTester" 
-                                            code:2003 
-                                        userInfo:@{NSLocalizedDescriptionKey: @"Failed to resolve host"}];
-                return;
-            }
-            
+
             // Connect
             LOG_DEBUG("Connecting to %s:%s...", [self.hostName UTF8String], [self.port UTF8String]);
-            struct sockaddr_in serverAddr;
-            memset(&serverAddr, 0, sizeof(serverAddr));
-            serverAddr.sin_family = AF_INET;
-            memcpy(&serverAddr.sin_addr.s_addr, server->h_addr, server->h_length);
-            serverAddr.sin_port = htons(self.port.intValue);
-            
+
             // Record connection start time
             NSDate *connectStartTime = [NSDate date];
-            if (connect(socketFd, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) < 0) {
+            if (connect(socketFd, (struct sockaddr *)&serverAddr, serverAddrLen) < 0) {
                 LOG_DEBUG("Error: Failed to connect (errno: %d)", errno);
-                error = [NSError errorWithDomain:@"ADBLatencyTester" 
-                                            code:2004 
+                error = [NSError errorWithDomain:@"ADBLatencyTester"
+                                            code:2004
                                         userInfo:@{NSLocalizedDescriptionKey: @"Failed to connect to ADB server"}];
                 return;
             }

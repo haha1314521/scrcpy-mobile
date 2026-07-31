@@ -206,29 +206,55 @@
             return;
         }
         
-        // Resolve hostname
+        // Resolve hostname - getaddrinfo supports both IPv4 (A) and IPv6 (AAAA)
+        // records; the legacy gethostbyname is IPv4-only and always fails for
+        // IPv6-only DDNS hosts
         LOG_DEBUG("Resolving hostname: %s", [self.host UTF8String]);
-        struct hostent *server = gethostbyname(self.host.UTF8String);
-        if (server == NULL) {
-            LOG_DEBUG("Error: Failed to resolve hostname (h_errno: %d)", h_errno);
-            error = [NSError errorWithDomain:@"TCPLatencyTester" 
-                                        code:2004 
+        struct addrinfo hints;
+        struct addrinfo *resolved = NULL;
+        memset(&hints, 0, sizeof(hints));
+        hints.ai_family = AF_UNSPEC;
+        hints.ai_socktype = SOCK_STREAM;
+        hints.ai_protocol = IPPROTO_TCP;
+        int gaiResult = getaddrinfo(self.host.UTF8String, self.port.UTF8String, &hints, &resolved);
+        if (gaiResult != 0 || resolved == NULL) {
+            LOG_DEBUG("Error: Failed to resolve hostname (getaddrinfo: %s)", gai_strerror(gaiResult));
+            if (resolved) { freeaddrinfo(resolved); }
+            error = [NSError errorWithDomain:@"TCPLatencyTester"
+                                        code:2004
                                     userInfo:@{NSLocalizedDescriptionKey: @"Failed to resolve host"}];
             return;
         }
-        
-        // Prepare server address
-        struct sockaddr_in serverAddr;
-        memset(&serverAddr, 0, sizeof(serverAddr));
-        serverAddr.sin_family = AF_INET;
-        memcpy(&serverAddr.sin_addr.s_addr, server->h_addr, server->h_length);
-        serverAddr.sin_port = htons(self.port.intValue);
-        
+
+        // Copy first result then release the list (safe on early returns)
+        struct sockaddr_storage serverAddr;
+        socklen_t serverAddrLen = resolved->ai_addrlen;
+        int addrFamily = resolved->ai_family;
+        memcpy(&serverAddr, resolved->ai_addr, resolved->ai_addrlen);
+        freeaddrinfo(resolved);
+        LOG_DEBUG("Hostname resolved (family: %s)", addrFamily == AF_INET6 ? "IPv6" : "IPv4");
+
+        // Recreate the socket if the resolved family is not IPv4 (socket above
+        // was created as AF_INET)
+        if (addrFamily != AF_INET) {
+            close(socketFd);
+            socketFd = socket(addrFamily, SOCK_STREAM, 0);
+            if (socketFd < 0) {
+                LOG_DEBUG("Error: Failed to recreate socket for family %d (errno: %d)", addrFamily, errno);
+                error = [NSError errorWithDomain:@"TCPLatencyTester"
+                                            code:2004
+                                        userInfo:@{NSLocalizedDescriptionKey: @"Failed to create socket"}];
+                return;
+            }
+            setsockopt(socketFd, SOL_SOCKET, SO_RCVTIMEO, &readTimeout, sizeof(readTimeout));
+            setsockopt(socketFd, SOL_SOCKET, SO_SNDTIMEO, &connectTimeout, sizeof(connectTimeout));
+        }
+
         // Connect to server
         LOG_DEBUG("Connecting to %s:%s...", [self.host UTF8String], [self.port UTF8String]);
         NSDate *connectStartTime = [NSDate date];
-        
-        if (connect(socketFd, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) < 0) {
+
+        if (connect(socketFd, (struct sockaddr *)&serverAddr, serverAddrLen) < 0) {
             LOG_DEBUG("Error: Failed to connect (errno: %d)", errno);
             error = [NSError errorWithDomain:@"TCPLatencyTester" 
                                         code:2005 
