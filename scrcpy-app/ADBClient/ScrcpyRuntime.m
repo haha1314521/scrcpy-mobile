@@ -155,7 +155,19 @@ AVSampleBufferDisplayLayer *GetSampleBufferDisplayLayer(void)
                 displayLayer = [AVSampleBufferDisplayLayer layer];
                 displayLayer.videoGravity = AVLayerVideoGravityResizeAspect;
                 
-                UIWindow *sdlWindow = GetCurrentWindowScene().keyWindow;
+                UIWindowScene *scene = GetCurrentWindowScene();
+                UIWindow *sdlWindow = nil;
+                if (@available(iOS 15.0, *)) {
+                    sdlWindow = scene.keyWindow;
+                } else {
+                    // UIWindowScene.keyWindow is iOS 15+; fall back to scanning scene windows
+                    for (UIWindow *w in scene.windows) {
+                        if (w.isKeyWindow) { sdlWindow = w; break; }
+                    }
+                    if (sdlWindow == nil) {
+                        sdlWindow = scene.windows.firstObject;
+                    }
+                }
                 
                 // Skip when no SDL window found
                 if (sdlWindow == nil) {
