@@ -40,7 +40,7 @@ static const CGFloat kMenuHorizontalPadding = 5.0f;
 static const CGFloat kMenuVerticalSpacing = 10.0f;
 
 // Button Constants
-static const CGFloat kButtonWidth = 60.0f;
+static const CGFloat kButtonWidth = 52.0f;  // 60 -> 52 so 7 buttons fit within 400pt / narrow screens
 static const CGFloat kButtonHeight = 60.0f;
 static const CGFloat kButtonSpacing = 0.0f;
 
@@ -326,7 +326,7 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
     UIWindow *window = [self activeWindow];
     self.activeWindow = window;
 
-    CGFloat initialMenuWidth = 6 * kButtonWidth + 5 * kButtonSpacing + kMenuHorizontalPadding * 2;
+    CGFloat initialMenuWidth = 7 * kButtonWidth + 6 * kButtonSpacing + kMenuHorizontalPadding * 2;
     CGFloat maxAvailableWidth = window.bounds.size.width - (kMenuHorizontalPadding * 2);
     initialMenuWidth = MIN(initialMenuWidth, maxAvailableWidth);
 
