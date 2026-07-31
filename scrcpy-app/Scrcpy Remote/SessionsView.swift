@@ -491,32 +491,38 @@ struct SessionsView: View {
     ///   - port: The port to connect to
     ///   - deviceType: The device type to determine which tester to use
     ///   - completion: Optional completion handler
-    private func performLatencyTest(for session: ScrcpySession, host: String, port: String, completion: (() -> Void)? = nil) {
+    private func performLatencyTest(for session: ScrcpySession, host: String, port: String, attempt: Int = 0, completion: (() -> Void)? = nil) {
+        // First LAN socket right after cold launch often fails transiently (local
+        // network privacy readiness race, worst on iOS 14) - retry once before
+        // reporting an error.
+        let resultHandler: (NSNumber?, Error?) -> Void = { latency, error in
+            DispatchQueue.main.async {
+                if error != nil && attempt < 1 {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                        performLatencyTest(for: session, host: host, port: port, attempt: attempt + 1, completion: completion)
+                    }
+                    return
+                }
+                self.handleLatencyTestResult(for: session, latency: latency, error: error)
+                completion?()
+            }
+        }
+
         // Choose the appropriate latency tester based on device type
         switch session.sessionModel.deviceType {
         case .adb:
             // Use ADBLatencyTester for ADB devices
             let tester = ADBLatencyTester(session: session.sessionModel.toDict())
-            
+
             // Run latency test with 1 iteration for a quick result
-            tester.testAverageLatency(withCount: 1) { latency, error in
-                DispatchQueue.main.async {
-                    self.handleLatencyTestResult(for: session, latency: latency, error: error)
-                    completion?()
-                }
-            }
-            
+            tester.testAverageLatency(withCount: 1, completion: resultHandler)
+
         case .vnc:
             // Use TCPLatencyTester for VNC devices or proxied connections
             let tester = TCPLatencyTester(host: host, port: port)
-            
+
             // Run latency test with 1 iteration for a quick result
-            tester.testAverageLatency(withCount: 1) { latency, error in
-                DispatchQueue.main.async {
-                    self.handleLatencyTestResult(for: session, latency: latency, error: error)
-                    completion?()
-                }
-            }
+            tester.testAverageLatency(withCount: 1, completion: resultHandler)
         }
     }
     
