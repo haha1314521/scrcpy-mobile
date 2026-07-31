@@ -939,7 +939,17 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
     CGRect currentFrame = self.menuView.frame;
     CGFloat menuHeight = currentFrame.size.height;
 
-    self.menuView.frame = CGRectMake(currentFrame.origin.x, currentFrame.origin.y, idealMenuWidth, menuHeight);
+    // Re-center horizontally after the width changes instead of keeping the old
+    // origin (which left the menu visually shifted to the left)
+    CGFloat menuOriginX = currentFrame.origin.x;
+    UIView *hostView = self.menuView.superview;
+    if (hostView) {
+        menuOriginX = (hostView.bounds.size.width - idealMenuWidth) / 2.0f;
+        menuOriginX = MAX(kMenuHorizontalPadding,
+                          MIN(hostView.bounds.size.width - idealMenuWidth - kMenuHorizontalPadding, menuOriginX));
+    }
+
+    self.menuView.frame = CGRectMake(menuOriginX, currentFrame.origin.y, idealMenuWidth, menuHeight);
 
     CGFloat containerStartX = kMenuHorizontalPadding;
     CGFloat containerY = (menuHeight - buttonHeight) / 2.0;
