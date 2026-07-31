@@ -596,7 +596,7 @@ struct TailscaleAuthSettingsView: View {
                                         .progressViewStyle(CircularProgressViewStyle())
                                         .scaleEffect(0.8)
                                 } else {
-                                    Image(systemName: "key.viewfinder")
+                                    Image(systemName: "key.fill")
                                 }
                                 Text(isGeneratingKey ? "Generating..." : "Generate Auth Key")
                             }
@@ -687,7 +687,7 @@ struct TailscaleAuthSettingsView: View {
                 } else {
                     Button(action: { withAnimation { showOAuthSection = true } }) {
                         HStack {
-                            Image(systemName: "key.viewfinder")
+                            Image(systemName: "key.fill")
                             Text("Configure OAuth to generate auth keys automatically")
                                 .font(.subheadline)
                         }

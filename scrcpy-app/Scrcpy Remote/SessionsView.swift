@@ -97,7 +97,7 @@ struct SessionsView: View {
         Group {
             if savedSessions.isEmpty {
                 VStack {
-                    Image(systemName: "inset.filled.rectangle.badge.record")
+                    Image(systemName: "rectangle.on.rectangle")
                         .resizable()
                         .scaledToFit()
                         .frame(width: 60, height: 60)

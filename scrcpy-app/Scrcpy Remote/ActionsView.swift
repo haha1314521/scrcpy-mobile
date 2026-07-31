@@ -1133,7 +1133,7 @@ struct ActionsView: View {
         Group {
             if actionManager.actions.isEmpty {
                 VStack {
-                    Image(systemName: "inset.filled.rectangle.and.cursorarrow")
+                    Image(systemName: "hand.point.up.left")
                         .resizable()
                         .scaledToFit()
                         .frame(width: 60, height: 60)
