@@ -17,6 +17,7 @@ NSString * const kIconSwitchButton = @"square.circle";
 NSString * const kIconKeyboardButton = @"keyboard";
 NSString * const kIconActionsButton = @"ellipsis.circle";
 NSString * const kIconDisconnectButton = @"xmark.circle";
+NSString * const kIconRebootButton = @"power";
 NSString * const kIconClipboardSyncButton = @"square.and.arrow.up.on.square";
 
 // UserDefaults Keys

@@ -389,6 +389,10 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
     self.clipboardSyncButton = [self createButtonWithIcon:kIconClipboardSyncButton position:tempButtonFrame];
     [self.menuView addSubview:self.clipboardSyncButton];
 
+    // Reboot button (ADB only)
+    self.rebootButton = [self createButtonWithIcon:kIconRebootButton position:tempButtonFrame];
+    [self.menuView addSubview:self.rebootButton];
+
     // Disconnect button
     self.disconnectButton = [self createButtonWithIcon:kIconDisconnectButton position:tempButtonFrame];
     [self.menuView addSubview:self.disconnectButton];
@@ -668,6 +672,12 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
     }
 }
 
+- (void)rebootButtonTapped:(UIButton *)sender {
+    if ([self.delegate respondsToSelector:@selector(didTapRebootButton)]) {
+        [self.delegate didTapRebootButton];
+    }
+}
+
 - (void)keyboardButtonTapped:(UIButton *)sender {
     if ([self.delegate respondsToSelector:@selector(didTapKeyboardButton)]) {
         [self.delegate didTapKeyboardButton];
@@ -850,6 +860,7 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
         self.keyboardButton.hidden = NO;
         self.actionsButton.hidden = NO;
         self.clipboardSyncButton.hidden = YES;
+        self.rebootButton.hidden = NO;
         self.disconnectButton.hidden = NO;
 
         [self removePinchGesture];
@@ -864,6 +875,7 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
         self.keyboardButton.hidden = NO;
         self.actionsButton.hidden = NO;
         self.clipboardSyncButton.hidden = NO;
+        self.rebootButton.hidden = YES;
         self.disconnectButton.hidden = NO;
 
         LOG_POSITION(@"🐆 [ScrcpyMenuView] Scheduling VNC gestures setup with 0.3s delay");
@@ -891,6 +903,7 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
     if (!self.keyboardButton.hidden) [visibleButtons addObject:self.keyboardButton];
     if (!self.actionsButton.hidden) [visibleButtons addObject:self.actionsButton];
     if (!self.clipboardSyncButton.hidden) [visibleButtons addObject:self.clipboardSyncButton];
+    if (!self.rebootButton.hidden) [visibleButtons addObject:self.rebootButton];
     if (!self.disconnectButton.hidden) [visibleButtons addObject:self.disconnectButton];
 
     return [visibleButtons copy];
@@ -1083,6 +1096,8 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
         [self keyboardButtonTapped:nil];
     } else if ([buttonType isEqualToString:kIconClipboardSyncButton]) {
         [[NSNotificationCenter defaultCenter] postNotificationName:kNotificationVNCSyncClipboardRequest object:nil];
+    } else if ([buttonType isEqualToString:kIconRebootButton]) {
+        [self rebootButtonTapped:nil];
     } else if ([buttonType isEqualToString:kIconDisconnectButton]) {
         [self disconnectButtonTapped:nil];
     }

@@ -18,6 +18,7 @@ typedef NS_ENUM(NSInteger, ScrcpyDeviceType) {
 - (void)didTapSwitchButton;
 - (void)didTapKeyboardButton;
 - (void)didTapActionsButton;
+- (void)didTapRebootButton;
 - (void)didTapDisconnectButton;
 
 // 新增：缩放相关的代理方法

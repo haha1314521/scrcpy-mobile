@@ -524,6 +524,37 @@ static char orientationLockEnabledKey;
     });
 }
 
+- (void)didTapRebootButton {
+    // Confirm before rebooting the remote device
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:NSLocalizedString(@"Reboot Device", @"Reboot title")
+                                                                   message:NSLocalizedString(@"Reboot the remote Android device? The connection will be closed.", @"Reboot confirm message")
+                                                            preferredStyle:UIAlertControllerStyleAlert];
+
+    UIAlertAction *rebootAction = [UIAlertAction actionWithTitle:NSLocalizedString(@"Reboot", @"Reboot button")
+                                                           style:UIAlertActionStyleDestructive
+                                                         handler:^(UIAlertAction *action) {
+        NSLog(@"🔄 [SDL_uikitviewcontroller] Sending adb reboot to remote device");
+        [ADBClient.shared executeADBCommandAsync:@[@"reboot"] callback:^(NSString * _Nullable result, int returnCode) {
+            NSLog(@"🔄 [SDL_uikitviewcontroller] adb reboot returned %d: %@", returnCode, result);
+        }];
+        // The device goes down immediately - close our side after a short delay
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            [[NSNotificationCenter defaultCenter] postNotificationName:ScrcpyRequestDisconnectNotification object:nil];
+        });
+    }];
+
+    UIAlertAction *cancelAction = [UIAlertAction actionWithTitle:NSLocalizedString(@"Cancel", @"Cancel button")
+                                                           style:UIAlertActionStyleCancel
+                                                         handler:nil];
+
+    [alert addAction:cancelAction];
+    [alert addAction:rebootAction];
+
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [self presentViewController:alert animated:YES completion:nil];
+    });
+}
+
 - (void)didTapDisconnectButton {
     // Post notification to disconnect
     [[NSNotificationCenter defaultCenter] postNotificationName:ScrcpyRequestDisconnectNotification object:nil];

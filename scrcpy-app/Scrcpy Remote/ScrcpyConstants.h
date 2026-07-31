@@ -19,6 +19,7 @@ extern NSString * const kIconSwitchButton;
 extern NSString * const kIconKeyboardButton;
 extern NSString * const kIconActionsButton;
 extern NSString * const kIconDisconnectButton;
+extern NSString * const kIconRebootButton;
 extern NSString * const kIconClipboardSyncButton;
 
 // UserDefaults Keys
