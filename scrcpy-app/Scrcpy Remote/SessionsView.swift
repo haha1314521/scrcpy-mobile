@@ -6,6 +6,42 @@
 //
 
 import SwiftUI
+import Network
+
+// MARK: - iOS 14 local network activation primer
+// On iOS 14, raw BSD sockets to LAN addresses fail with EHOSTUNREACH until the
+// local-network permission is "activated" for this process by a high-level
+// networking API (Network.framework / CFNetwork). The latency testers use raw
+// sockets, so prime the activation once per launch before the first test.
+enum LocalNetworkPrimer {
+    private static var primed = false
+
+    static func prime(host: String, port: UInt16, completion: @escaping () -> Void) {
+        guard !primed else { completion(); return }
+        let connection = NWConnection(host: NWEndpoint.Host(host),
+                                      port: NWEndpoint.Port(rawValue: port) ?? 5555,
+                                      using: .tcp)
+        var finished = false
+        let finish: () -> Void = {
+            guard !finished else { return }
+            finished = true
+            primed = true
+            connection.cancel()
+            DispatchQueue.main.async { completion() }
+        }
+        connection.stateUpdateHandler = { state in
+            switch state {
+            case .ready, .failed:
+                finish()
+            default:
+                break
+            }
+        }
+        connection.start(queue: .global())
+        // Never block testing for long even if the connection hangs
+        DispatchQueue.global().asyncAfter(deadline: .now() + 3.0) { finish() }
+    }
+}
 
 struct ScrcpySession: Codable, Identifiable {
     var id: UUID {
@@ -422,10 +458,19 @@ struct SessionsView: View {
         // Clear previous results for this session
         latencyResults[session.id] = nil
         latencyErrors[session.id] = nil
-        
+
         // Set testing state
         testingLatencySessionId = session.id
-        
+
+        // Activate local-network permission for this process before using the
+        // raw-socket testers (no-op after the first time per launch)
+        LocalNetworkPrimer.prime(host: session.sessionModel.hostReal,
+                                 port: UInt16(session.sessionModel.port) ?? 5555) {
+            startLatencyTest(for: session)
+        }
+    }
+
+    private func startLatencyTest(for session: ScrcpySession) {
         // For Tailscale sessions, get connection info first
         if session.sessionModel.useTailscale {
             // Check if Tailscale configuration is valid
