@@ -829,15 +829,8 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
 #pragma mark - Device Type Configuration
 
 - (NSInteger)visibleButtonCount {
-    NSInteger count = 0;
-    if (!self.backButton.hidden) count++;
-    if (!self.homeButton.hidden) count++;
-    if (!self.switchButton.hidden) count++;
-    if (!self.keyboardButton.hidden) count++;
-    if (!self.actionsButton.hidden) count++;
-    if (!self.clipboardSyncButton.hidden) count++;
-    if (!self.disconnectButton.hidden) count++;
-    return count;
+    // Single source of truth - keep in sync with getVisibleButtons
+    return (NSInteger)[self getVisibleButtons].count;
 }
 
 + (ScrcpyDeviceType)deviceTypeFromString:(NSString *)deviceTypeString {
