@@ -192,7 +192,7 @@ void ScrcpyTryResetVideo(void) {
         NSArray *connectedDevices = [ADBClient.shared adbDevices];
         NSLog(@"ADB Devices: %@", connectedDevices);
         
-        NSString *authTips = @"\n\nPlease check and accpet the adb authorization request on your device.";
+        NSString *authTips = NSLocalizedString(@"\n\nPlease check and accept the adb authorization request on your device.", nil);
         
         if (returnCode != 0 || [connectResult containsString:@"failed"]) {
             NSLog(@"❌ ADB connect failed: %@", connectResult);
@@ -203,7 +203,7 @@ void ScrcpyTryResetVideo(void) {
         // Check if the device is connected
         if (connectedDevices.count == 0) {
             NSLog(@"❌ No ADB devices connected");
-            ScrcpyUpdateStatus(ScrcpyStatusConnectingFailed, "No ADB devices connected");
+            ScrcpyUpdateStatus(ScrcpyStatusConnectingFailed, NSLocalizedString(@"No ADB devices connected", nil).UTF8String);
             return;
         }
         
@@ -211,7 +211,7 @@ void ScrcpyTryResetVideo(void) {
         for (ADBDevice *device in connectedDevices) {
             if ([device.serial isEqualToString:serial] && device.status != ADBDeviceStatusDevice) {
                 NSLog(@"🦺 ADB device connected status: %@", device);
-                NSString *errorMessage = [NSString stringWithFormat:@"Device connect status:\n%@ -> %@%@", device.serial, device.statusText, authTips];
+                NSString *errorMessage = [NSString stringWithFormat:NSLocalizedString(@"Device connect status:\n%@ -> %@%@", nil), device.serial, device.statusText, authTips];
                 ScrcpyUpdateStatus(ScrcpyStatusConnectingFailed, errorMessage.UTF8String);
                 return;
             }

@@ -55,19 +55,19 @@ extension ScrcpyStatus {
     var description: String {
         switch self {
         case ScrcpyStatusDisconnected:
-            return "Disconnected"
+            return NSLocalizedString("Disconnected", comment: "")
         case ScrcpyStatusConnecting:
-            return "Connecting"
+            return NSLocalizedString("Connecting", comment: "")
         case ScrcpyStatusADBConnected:
-            return "ADB Connected"
+            return NSLocalizedString("ADB Connected", comment: "")
         case ScrcpyStatusConnected:
-            return "Connected"
+            return NSLocalizedString("Connected", comment: "")
         case ScrcpyStatusSDLWindowCreated:
-            return "Window Created"
+            return NSLocalizedString("Window Created", comment: "")
         case ScrcpyStatusSDLWindowAppeared:
-            return "Connected"
+            return NSLocalizedString("Connected", comment: "")
         case ScrcpyStatusConnectingFailed:
-            return "Connection Failed"
+            return NSLocalizedString("Connection Failed", comment: "")
         default:
             return "Unknown (\(self.rawValue))"
         }

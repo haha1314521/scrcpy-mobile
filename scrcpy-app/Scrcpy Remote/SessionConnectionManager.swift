@@ -416,31 +416,31 @@ typealias ActionConfirmationCallback = (ScrcpyAction, @escaping () -> Void) -> V
         
         guard let currentSession = currentSession else {
             print("❌ [SessionConnectionManager] Cannot execute action: no current session")
-            errorCallback("No Active Session", "No active session found. Please connect to a device first.")
+            errorCallback(NSLocalizedString("No Active Session", comment: ""), NSLocalizedString("No active session found. Please connect to a device first.", comment: ""))
             return
         }
         
         guard connectionStatus.isActive else {
             print("❌ [SessionConnectionManager] Cannot execute action: session not active (status: \(connectionStatus))")
-            errorCallback("Session Not Active", "Current session is not active. Please ensure the connection is established.")
+            errorCallback(NSLocalizedString("Session Not Active", comment: ""), NSLocalizedString("Current session is not active. Please ensure the connection is established.", comment: ""))
             return
         }
         
         print("✅ [SessionConnectionManager] Current session is connected, executing action immediately")
-        statusCallback(ScrcpyStatusConnected, "Executing action on current session", false)
+        statusCallback(ScrcpyStatusConnected, NSLocalizedString("Executing action on current session", comment: ""), false)
         
         // 根据动作的执行时机决定如何执行
         switch action.executionTiming {
         case .immediate:
             print("⚡ [SessionConnectionManager] Executing action immediately on current session")
             executeAction(action)
-            statusCallback(ScrcpyStatusConnected, "Action executed successfully", false)
+            statusCallback(ScrcpyStatusConnected, NSLocalizedString("Action executed successfully", comment: ""), false)
         case .delayed:
             print("⏰ [SessionConnectionManager] Executing action after \(action.delaySeconds) seconds delay on current session")
             statusCallback(ScrcpyStatusConnected, "Action will execute in \(action.delaySeconds) seconds", false)
             DispatchQueue.main.asyncAfter(deadline: .now() + TimeInterval(action.delaySeconds)) {
                 self.executeAction(action)
-                statusCallback(ScrcpyStatusConnected, "Action executed successfully", false)
+                statusCallback(ScrcpyStatusConnected, NSLocalizedString("Action executed successfully", comment: ""), false)
             }
         case .confirmation:
             print("❓ [SessionConnectionManager] Action requires confirmation on current session")
@@ -448,12 +448,12 @@ typealias ActionConfirmationCallback = (ScrcpyAction, @escaping () -> Void) -> V
                 confirmationCallback(action) { [weak self] in
                     print("✅ [SessionConnectionManager] User confirmed action, executing on current session")
                     self?.executeAction(action)
-                    statusCallback(ScrcpyStatusConnected, "Action executed successfully", false)
+                    statusCallback(ScrcpyStatusConnected, NSLocalizedString("Action executed successfully", comment: ""), false)
                 }
             } else {
                 print("⚠️ [SessionConnectionManager] No confirmation callback, executing directly on current session")
                 executeAction(action)
-                statusCallback(ScrcpyStatusConnected, "Action executed successfully", false)
+                statusCallback(ScrcpyStatusConnected, NSLocalizedString("Action executed successfully", comment: ""), false)
             }
         }
     }
@@ -471,7 +471,7 @@ typealias ActionConfirmationCallback = (ScrcpyAction, @escaping () -> Void) -> V
         print("🔗 [SessionConnectionManager] Performing connection to session: \(session.sessionName)")
 
         isConnecting = true
-        statusCallback(ScrcpyStatusConnecting, "Preparing connection...", true)
+        statusCallback(ScrcpyStatusConnecting, NSLocalizedString("Preparing connection...", comment: ""), true)
 
         // Hook up SessionNetworking status callback for Tailscale/OAuth status updates
         SessionNetworking.shared.statusUpdateCallback = { [weak self] message in
@@ -503,8 +503,8 @@ typealias ActionConfirmationCallback = (ScrcpyAction, @escaping () -> Void) -> V
                         // Clear the status callback on error
                         SessionNetworking.shared.statusUpdateCallback = nil
                         self.handleConnectionError(
-                            title: "Connection Setup Failed",
-                            message: "Failed to setup connection. Please check your network configuration and try again.",
+                            title: NSLocalizedString("Connection Setup Failed", comment: ""),
+                            message: NSLocalizedString("Failed to setup connection. Please check your network configuration and try again.", comment: ""),
                             errorCallback: errorCallback
                         )
                     }
@@ -538,7 +538,7 @@ typealias ActionConfirmationCallback = (ScrcpyAction, @escaping () -> Void) -> V
                     // Clear the status callback on error
                     SessionNetworking.shared.statusUpdateCallback = nil
                     self.handleConnectionError(
-                        title: "Connection Error",
+                        title: NSLocalizedString("Connection Error", comment: ""),
                         message: "Failed to establish connection: \(error.localizedDescription)",
                         errorCallback: errorCallback
                     )
