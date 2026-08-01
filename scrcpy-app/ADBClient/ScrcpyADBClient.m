@@ -525,32 +525,6 @@ void ScrcpyTryResetVideo(void) {
 
 #pragma mark - Notification
 
-// scrcpy 移植层(C)发出的状态文案是硬编码英文, 且编译进静态库无法改。
-// 在送达界面前统一做一次本地化映射, 未命中的原样返回。
-- (NSString *)localizedStatusMessage:(NSString *)message {
-    if (message.length == 0) return message;
-    static NSDictionary<NSString *, NSString *> *map = nil;
-    static dispatch_once_t once;
-    dispatch_once(&once, ^{
-        map = @{
-            @"SDL Inited":            NSLocalizedString(@"SDL Inited", nil),
-            @"SDL Window Created":    NSLocalizedString(@"SDL Window Created", nil),
-            @"Scrcpy connected":      NSLocalizedString(@"Scrcpy connected", nil),
-            @"Scrcpy disconnected":   NSLocalizedString(@"Scrcpy disconnected", nil),
-            @"Scrcpy connect failed": NSLocalizedString(@"Scrcpy connect failed", nil),
-        };
-    });
-    NSString *hit = map[message];
-    if (hit) return hit;
-    // 带后缀的情况(如错误详情拼接在后面)按前缀匹配
-    for (NSString *key in map) {
-        if ([message hasPrefix:key]) {
-            return [map[key] stringByAppendingString:[message substringFromIndex:key.length]];
-        }
-    }
-    return message;
-}
-
 - (void)onScrcpyStatusUpdated:(NSNotification *)notification {
     NSLog(@"Scrcpy status updated: %@", notification.userInfo);
     enum ScrcpyStatus status = [notification.userInfo[@"status"] intValue];
@@ -559,7 +533,7 @@ void ScrcpyTryResetVideo(void) {
     self.scrcpyStatus = status;
 
     // Callback
-    if (self.sessionCompletion) self.sessionCompletion(status, [self localizedStatusMessage:notification.userInfo[@"message"]]);
+    if (self.sessionCompletion) self.sessionCompletion(status, notification.userInfo[@"message"]);
     
     // Sync clipboard after connected
     [self syncClipboardWithConnectedDevice];
