@@ -24,12 +24,12 @@
         return;
     }
 
-    UIAlertController *actionSheet = [UIAlertController alertControllerWithTitle:@"Send Files or Photos"
-                                                                         message:@"Choose the source of files to send to the device"
+    UIAlertController *actionSheet = [UIAlertController alertControllerWithTitle:NSLocalizedString(@"Send Files or Photos", nil)
+                                                                         message:NSLocalizedString(@"Choose the source of files to send to the device", nil)
                                                                   preferredStyle:UIAlertControllerStyleActionSheet];
 
     // Browse Files action
-    UIAlertAction *browseFilesAction = [UIAlertAction actionWithTitle:@"Browse Files"
+    UIAlertAction *browseFilesAction = [UIAlertAction actionWithTitle:NSLocalizedString(@"Browse Files", nil)
                                                                 style:UIAlertActionStyleDefault
                                                               handler:^(UIAlertAction * _Nonnull action) {
         NSLog(@"📂 [ScrcpyMenuView] User selected Browse Files");
@@ -38,7 +38,7 @@
     [actionSheet addAction:browseFilesAction];
 
     // Browse Photo Library action
-    UIAlertAction *browsePhotosAction = [UIAlertAction actionWithTitle:@"Browse Photo Library"
+    UIAlertAction *browsePhotosAction = [UIAlertAction actionWithTitle:NSLocalizedString(@"Browse Photo Library", nil)
                                                                  style:UIAlertActionStyleDefault
                                                                handler:^(UIAlertAction * _Nonnull action) {
         NSLog(@"🖼️ [ScrcpyMenuView] User selected Browse Photo Library");
@@ -336,7 +336,7 @@
 
         // Status label
         UILabel *statusLabel = [[UILabel alloc] initWithFrame:CGRectMake(0, 38, rowView.bounds.size.width, 18)];
-        statusLabel.text = @"Waiting...";
+        statusLabel.text = NSLocalizedString(@"Waiting...", nil);
         statusLabel.textColor = [[UIColor whiteColor] colorWithAlphaComponent:0.7];
         statusLabel.font = [UIFont systemFontOfSize:12.0];
         [rowView addSubview:statusLabel];
@@ -457,7 +457,7 @@
     NSLog(@"📤 [ScrcpyMenuView] Transferring file %ld: %@", (long)index, fileURL.lastPathComponent);
 
     // Update status to "Transferring..."
-    [self updateFileProgress:index progress:0.1 status:@"Transferring..."];
+    [self updateFileProgress:index progress:0.1 status:NSLocalizedString(@"Transferring...", nil)];
 
     // Start security-scoped access
     BOOL accessGranted = [fileURL startAccessingSecurityScopedResource];
@@ -504,7 +504,7 @@
         } else {
             NSLog(@"❌ [ScrcpyMenuView] File transfer failed: %@ - %@", fileName, output);
             strongSelf.hasFileTransferError = YES;
-            NSString *errorStatus = [NSString stringWithFormat:@"✗ %@", output ?: @"Unknown error"];
+            NSString *errorStatus = [NSString stringWithFormat:@"✗ %@", output ?: NSLocalizedString(@"Unknown error", nil)];
             if (errorStatus.length > 50) {
                 errorStatus = [[errorStatus substringToIndex:47] stringByAppendingString:@"..."];
             }
@@ -541,7 +541,7 @@
                 NSString *fileKey = [NSString stringWithFormat:@"%ld", (long)index];
                 UIProgressView *progressView = strongSelf.fileProgressViews[fileKey];
                 UILabel *statusLabel = strongSelf.fileStatusLabels[fileKey];
-                if (progressView && statusLabel && [statusLabel.text isEqualToString:@"Transferring..."]) {
+                if (progressView && statusLabel && [statusLabel.text isEqualToString:NSLocalizedString(@"Transferring...", nil)]) {
                     [progressView setProgress:progress animated:YES];
                 }
             });

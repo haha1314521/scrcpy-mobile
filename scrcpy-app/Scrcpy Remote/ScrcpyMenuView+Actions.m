@@ -95,7 +95,7 @@
     messageView.layer.cornerRadius = 10.0;
 
     UILabel *messageLabel = [[UILabel alloc] init];
-    messageLabel.text = @"No Actions Available";
+    messageLabel.text = NSLocalizedString(@"No Actions Available", nil);
     messageLabel.textColor = [UIColor whiteColor];
     messageLabel.font = [UIFont systemFontOfSize:16.0];
     messageLabel.textAlignment = NSTextAlignmentCenter;
@@ -323,10 +323,10 @@
             UIImage *sendIcon = [[UIImage systemImageNamed:@"square.and.arrow.up.fill" withConfiguration:largeConfig]
                                  imageWithTintColor:[UIColor systemBlueColor] renderingMode:UIImageRenderingModeAlwaysOriginal];
             cell.imageView.image = [self imageWithIcon:sendIcon inSize:iconContainerSize];
-            cell.textLabel.text = @"Send Files or Photos";
+            cell.textLabel.text = NSLocalizedString(@"Send Files or Photos", nil);
             cell.textLabel.textColor = [UIColor whiteColor];
             cell.textLabel.font = [UIFont systemFontOfSize:16.0 weight:UIFontWeightMedium];
-            cell.detailTextLabel.text = @"Push files or photos to device";
+            cell.detailTextLabel.text = NSLocalizedString(@"Push files or photos to device", nil);
             cell.detailTextLabel.textColor = [[UIColor whiteColor] colorWithAlphaComponent:0.7];
             cell.detailTextLabel.font = [UIFont systemFontOfSize:12.0];
             return cell;
