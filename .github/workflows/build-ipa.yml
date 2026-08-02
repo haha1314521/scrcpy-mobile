@@ -96,8 +96,8 @@ jobs:
         if: steps.libcache.outputs.cache-hit != 'true'
         run: make -C porting ffmpeg
 
+      # porting/src 不在缓存键里, 所以 libscrcpy 每次都重编(约 5 分钟), 保证移植层改动生效
       - name: Build libscrcpy
-        if: steps.libcache.outputs.cache-hit != 'true'
         run: make -C porting scrcpy
 
       - name: Build OpenSSL

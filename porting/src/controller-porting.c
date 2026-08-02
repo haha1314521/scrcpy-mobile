@@ -29,8 +29,22 @@ bool sc_controller_push_msg(struct sc_controller *controller,
       	// log current touch event with time and position
         struct timeval tv;
         gettimeofday(&tv, NULL);
-        // printf("inject_touch_event: %ld.%06ld, x=%d, y=%d\n", tv.tv_sec, tv.tv_usec,
-        //       msg->inject_touch_event.position.point.x, msg->inject_touch_event.position.point.y);
+        // 诊断"单击变双击/长按": 打印真正发往设备的每个触摸事件
+        // action: 0=DOWN 1=UP 2=MOVE, pointer_id 是手指标识
+        {
+            static const char *act[] = {"DOWN", "UP", "MOVE", "CANCEL", "OUTSIDE",
+                                        "PTR_DOWN", "PTR_UP", "HOVER_MOVE", "SCROLL",
+                                        "HOVER_ENTER", "HOVER_EXIT", "BTN_PRESS", "BTN_RELEASE"};
+            unsigned a = (unsigned)msg->inject_touch_event.action;
+            printf("[TOUCH] %ld.%03d %-9s id=%llu x=%d y=%d p=%.2f\n",
+                   (long)tv.tv_sec, (int)(tv.tv_usec / 1000),
+                   a < sizeof(act)/sizeof(act[0]) ? act[a] : "?",
+                   (unsigned long long)msg->inject_touch_event.pointer_id,
+                   msg->inject_touch_event.position.point.x,
+                   msg->inject_touch_event.position.point.y,
+                   msg->inject_touch_event.pressure);
+            fflush(stdout);
+        }
 
         // x/y is negative
         msg->inject_touch_event.position.point.x = MAX(msg->inject_touch_event.position.point.x, 0);;
