@@ -471,6 +471,7 @@ typealias ActionConfirmationCallback = (ScrcpyAction, @escaping () -> Void) -> V
         print("🔗 [SessionConnectionManager] Performing connection to session: \(session.sessionName)")
 
         isConnecting = true
+        isUserInitiatedDisconnect = false   // 新连接开始, 恢复正常报错
         statusCallback(ScrcpyStatusConnecting, NSLocalizedString("Preparing connection...", comment: ""), true)
 
         // Hook up SessionNetworking status callback for Tailscale/OAuth status updates
@@ -759,7 +760,12 @@ typealias ActionConfirmationCallback = (ScrcpyAction, @escaping () -> Void) -> V
             print("🚫 [SessionConnectionManager] Already disconnected, no action needed")
             return
         }
-        
+
+        // 用户主动关闭会话时, 设备端 scrcpy 服务因为客户端断开而写失败(ECONNRESET),
+        // 会输出 ERROR 日志。那不是故障, 不应该弹错误框吓人 —— 这里打标记, 由
+        // showErrorAlert 判断后跳过。
+        isUserInitiatedDisconnect = true
+
         print("🔌 [SessionConnectionManager] Disconnecting current connection")
         
         // 使用 ScrcpyClientWrapper 的 disconnect 方法
@@ -1483,7 +1489,15 @@ typealias ActionConfirmationCallback = (ScrcpyAction, @escaping () -> Void) -> V
         return raw
     }
 
+    /// 是否为用户主动关闭会话(主动关闭时的"连接被重置"不算故障, 不弹框)
+    private var isUserInitiatedDisconnect = false
+
     private func showErrorAlert(with errorMessage: String) {
+        if isUserInitiatedDisconnect {
+            print("🔕 [SessionConnectionManager] 用户主动断开导致的报错, 不弹框: \(errorMessage.prefix(80))")
+            isUserInitiatedDisconnect = false
+            return
+        }
         guard let frontmostWindow = getFrontmostWindow() else {
             print("❌ [SessionConnectionManager] No frontmost window found, cannot show error alert")
             return

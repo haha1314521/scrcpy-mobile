@@ -34,21 +34,29 @@ static inline int array_len(const char *arr[]) {
  */
 
 static std::map<pid_t, std::string> sc_result_map;
+static std::mutex sc_result_map_mutex;
 
 /**
  * global variable to store last output
  */
 static std::string sc_last_output;
+static std::mutex sc_last_output_mutex;
 
+// 这些容器会被工作线程和调用线程同时读写, 必须全程加锁。
+// 缺锁会破坏 std::map 内部的红黑树, 标准库检测到后直接 abort() —— 表现为
+// App 毫无征兆地消失(且不产生系统崩溃日志, 因为是 abort 且发生在子线程)。
 void sc_store_result(pid_t pid, const char *result) {
+    std::lock_guard<std::mutex> lock(sc_result_map_mutex);
     sc_result_map.emplace(pid, std::string(result));
 }
 
 const char *sc_retrieve_result(pid_t pid) {
+    std::lock_guard<std::mutex> lock(sc_result_map_mutex);
     return sc_result_map[pid].c_str();
 }
 
 const char *sc_remove_result(int pid) {
+    std::lock_guard<std::mutex> lock(sc_result_map_mutex);
     std::string result = sc_result_map[pid];
     sc_result_map.erase(pid);
     if (result.empty()) {
@@ -61,16 +69,20 @@ const char *sc_remove_result(int pid) {
  * map to store return success of pid
  */
 static std::map<pid_t, bool> sc_success_map;
+static std::mutex sc_success_map_mutex;
 
 void sc_store_success(pid_t pid, bool success) {
+    std::lock_guard<std::mutex> lock(sc_success_map_mutex);
     sc_success_map.emplace(pid, success);
 }
 
 bool sc_retrieve_success(pid_t pid) {
+    std::lock_guard<std::mutex> lock(sc_success_map_mutex);
     return sc_success_map[pid];
 }
 
 void sc_remove_success(pid_t pid) {
+    std::lock_guard<std::mutex> lock(sc_success_map_mutex);
     sc_success_map.erase(pid);
 }
 
@@ -203,16 +215,25 @@ void adb_process_thread_func(bool *thread_started, pid_t pid, const char *thread
     
     // Store valid output to global variable
     if (valid_len > 0 && result) {
+        std::lock_guard<std::mutex> lock(sc_last_output_mutex);
         sc_last_output = std::string(result, valid_len);
         printf("> result:\n%.*s\n", (int)valid_len, result);
     } else {
+        std::lock_guard<std::mutex> lock(sc_last_output_mutex);
         sc_last_output = "";
         printf("> result:\n(empty)\n");
     }
 
     // Remove from sc_thread_map
-    sc_thread_map.erase(pid);
-    sc_thread_map[pid] = nullptr;
+    // 【崩溃修复】这里原本不加锁直接改 map, 而其它线程正持锁读写同一个 map,
+    // 并发修改导致红黑树损坏 -> abort()。实测崩溃栈:
+    //   adb_process_thread_func -> map::erase -> __tree_remove -> abort
+    // 现改为与其它访问点使用同一把锁。
+    {
+        std::lock_guard<std::mutex> lock(sc_thread_map_mutex);
+        sc_thread_map.erase(pid);
+        sc_thread_map[pid] = nullptr;   // 标记为已结束, 由 sc_thread_clean 后续清理
+    }
 }
 
 int
@@ -306,5 +327,6 @@ sc_process_terminate(pid_t pid) {
 
 const char *
 scrcpy_process_get_last_output() {
+    std::lock_guard<std::mutex> lock(sc_last_output_mutex);
     return sc_last_output.c_str();
 }
