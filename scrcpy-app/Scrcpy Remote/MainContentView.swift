@@ -151,6 +151,13 @@ struct MainContentView: View {
             )
             .transition(.opacity.combined(with: .scale))
             .animation(.easeInOut(duration: 0.3), value: shouldShowConnectionStatusView)
+                .onDisappear {
+                    // 兜底: 连接界面消失后, 导航栏必须回来
+                    if isNavigationBarHidden {
+                        print("🧭 [MainContentView] 连接界面已关闭, 恢复导航栏")
+                        isNavigationBarHidden = false
+                    }
+                }
         }
     }
 
@@ -191,7 +198,9 @@ struct MainContentView: View {
     }
 
     private func handleConnectingChange(_ isConnecting: Bool) {
-        if isConnecting {
+        // 用户已经关掉连接界面后, 迟到的状态回调不应该再把导航栏藏起来,
+        // 否则会话列表顶部的设置/新建按钮会一直消失, 直到下次进入会话才恢复。
+        if isConnecting && !userDismissedConnection {
             isNavigationBarHidden = true
         }
 
@@ -230,7 +239,8 @@ struct MainContentView: View {
         case ScrcpyStatusConnectingFailed:
             print("❌ [MainContentView] Connection failed, waiting for user to dismiss")
             print("❌ [MainContentView] Current currentStatusMessage: \(currentStatusMessage ?? "nil")")
-            isNavigationBarHidden = true
+            // 仅在失败提示还要显示时才隐藏导航栏; 用户已主动关闭的话保持显示
+            isNavigationBarHidden = !userDismissedConnection
 
             // 不自动清除状态消息，等待用户点击 dismiss 按钮
 
