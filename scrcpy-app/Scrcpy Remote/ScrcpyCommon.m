@@ -9,6 +9,9 @@
 #import <Foundation/Foundation.h>
 #import <execinfo.h>
 #import <stdlib.h>
+#import <signal.h>
+#import <string.h>
+#import <unistd.h>
 
 // ===== 退出诊断 =====
 // 现象: App 有时"闪退"却不产生任何崩溃日志。崩溃(含被系统杀)一定会留 .ips,
@@ -31,9 +34,61 @@ static void scrcpy_exit_diagnostic(void) {
     fflush(stderr);
 }
 
+// ===== 崩溃捕获 =====
+// 系统的崩溃日志(分析数据里的 .ips)始终找不到, 因此让 App 自己把崩溃现场
+// 写进应用日志(用户能直接导出的那个文件)。
+// 信号处理里只用 async-signal-safe 的 write/backtrace_symbols_fd。
+static void scrcpy_crash_handler(int sig) {
+    const char *head = "\n[CRASH] ======== 收到致命信号 ========\n";
+    write(STDOUT_FILENO, head, strlen(head));
+
+    const char *name = "unknown";
+    switch (sig) {
+        case SIGSEGV: name = "SIGSEGV (非法内存访问)\n"; break;
+        case SIGBUS:  name = "SIGBUS (总线错误)\n";      break;
+        case SIGILL:  name = "SIGILL (非法指令)\n";      break;
+        case SIGFPE:  name = "SIGFPE (算术错误)\n";      break;
+        case SIGABRT: name = "SIGABRT (主动中止)\n";     break;
+        case SIGTRAP: name = "SIGTRAP (断点/陷阱)\n";    break;
+        case SIGPIPE: name = "SIGPIPE (管道断开)\n";     break;
+        default:      name = "其它信号\n";               break;
+    }
+    write(STDOUT_FILENO, "[CRASH] ", 8);
+    write(STDOUT_FILENO, name, strlen(name));
+
+    void *frames[64];
+    int n = backtrace(frames, 64);
+    backtrace_symbols_fd(frames, n, STDOUT_FILENO);
+
+    const char *tail = "[CRASH] ======== 调用栈结束 ========\n";
+    write(STDOUT_FILENO, tail, strlen(tail));
+    fsync(STDOUT_FILENO);
+
+    signal(sig, SIG_DFL);
+    raise(sig);
+}
+
+// 未捕获的 ObjC 异常(NSException)
+static void scrcpy_exception_handler(NSException *exception) {
+    printf("\n[CRASH] ======== 未捕获异常 ========\n");
+    printf("[CRASH] name: %s\n", exception.name.UTF8String ?: "");
+    printf("[CRASH] reason: %s\n", exception.reason.UTF8String ?: "");
+    for (NSString *sym in exception.callStackSymbols) {
+        printf("[CRASH] %s\n", sym.UTF8String ?: "");
+    }
+    printf("[CRASH] ======== 异常结束 ========\n");
+    fflush(stdout);
+}
+
 __attribute__((constructor))
 static void scrcpy_install_exit_diagnostic(void) {
     atexit(scrcpy_exit_diagnostic);
+
+    int sigs[] = { SIGSEGV, SIGBUS, SIGILL, SIGFPE, SIGABRT, SIGTRAP };
+    for (unsigned i = 0; i < sizeof(sigs)/sizeof(sigs[0]); i++) {
+        signal(sigs[i], scrcpy_crash_handler);
+    }
+    NSSetUncaughtExceptionHandler(&scrcpy_exception_handler);
 }
 
 // 会话开始时打一条标记, 用于确认日志确实在工作(便于排查"日志里搜不到内容")
