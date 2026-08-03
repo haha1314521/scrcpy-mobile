@@ -430,8 +430,16 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
     panGesture.delaysTouchesEnded = YES;
     [self.capsuleView addGestureRecognizer:panGesture];
 
+    // "点空白处收起菜单"的手势挂在整个窗口上, 会拦截投屏画面上的每一次触摸。
+    // UIKit 在手势判定期间会扣住"抬手"事件(delaysTouchesEnded 默认 YES),
+    // 实测导致抬手延迟约 0.5 秒 —— 正好达到安卓的长按阈值, 单击就变成了长按。
+    // 因此: 平时禁用, 只在菜单展开时启用(那时本来也不该把点击透传给设备)。
     UITapGestureRecognizer *dismissTapGesture = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(handleDismissTap:)];
     dismissTapGesture.cancelsTouchesInView = YES;
+    dismissTapGesture.delaysTouchesBegan = NO;
+    dismissTapGesture.delaysTouchesEnded = NO;
+    dismissTapGesture.enabled = NO;                 // 菜单收起时不参与触摸判定
+    self.dismissGestureRecognizer = dismissTapGesture;
     [[self activeWindow] addGestureRecognizer:dismissTapGesture];
 }
 
@@ -506,6 +514,8 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
 
 - (void)toggleMenuExpansion {
     if (self.isExpanded) {
+        // 收起: 关掉窗口级手势, 恢复投屏触摸的原生响应速度
+        self.dismissGestureRecognizer.enabled = NO;
         [UIView animateWithDuration:kAnimationDuration animations:^{
             self.menuView.alpha = 0;
             self.menuView.transform = CGAffineTransformMakeScale(0.5, 0.5);
@@ -518,6 +528,8 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
 
         [self.maskView hide];
     } else {
+        // 展开: 启用"点空白处收起"手势
+        self.dismissGestureRecognizer.enabled = YES;
         [self updateMenuPosition];
         [self updateButtonLayout];
         self.menuView.hidden = NO;
