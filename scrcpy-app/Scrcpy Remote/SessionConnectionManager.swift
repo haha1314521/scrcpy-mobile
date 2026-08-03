@@ -169,7 +169,24 @@ typealias ActionConfirmationCallback = (ScrcpyAction, @escaping () -> Void) -> V
             name: UIApplication.didBecomeActiveNotification,
             object: nil
         )
+
+        // 监听"用户请求断开"(会话内悬浮菜单的 × 走的是这条通知, 不经过 disconnectCurrent)
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleUserRequestedDisconnect),
+            name: Notification.Name("ScrcpyRequestDisconnectNotification"),
+            object: nil
+        )
     }
+
+    /// 用户主动断开: 之后设备端因客户端消失而报的 ECONNRESET 不是故障, 不弹框
+    @objc private func handleUserRequestedDisconnect() {
+        print("🔕 [SessionConnectionManager] 用户主动断开, 抑制随后的连接中断报错")
+        userDisconnectAt = Date()
+    }
+
+    /// 用户主动断开的时刻(用于短时间内抑制"连接被重置"这类必然出现的报错)
+    private var userDisconnectAt: Date?
     
     @objc private func handleScrcpyStatusUpdate(_ notification: Notification) {
         guard let userInfo = notification.userInfo,
@@ -471,7 +488,7 @@ typealias ActionConfirmationCallback = (ScrcpyAction, @escaping () -> Void) -> V
         print("🔗 [SessionConnectionManager] Performing connection to session: \(session.sessionName)")
 
         isConnecting = true
-        isUserInitiatedDisconnect = false   // 新连接开始, 恢复正常报错
+        userDisconnectAt = nil   // 新连接开始, 恢复正常报错
         statusCallback(ScrcpyStatusConnecting, NSLocalizedString("Preparing connection...", comment: ""), true)
 
         // Hook up SessionNetworking status callback for Tailscale/OAuth status updates
@@ -764,7 +781,7 @@ typealias ActionConfirmationCallback = (ScrcpyAction, @escaping () -> Void) -> V
         // 用户主动关闭会话时, 设备端 scrcpy 服务因为客户端断开而写失败(ECONNRESET),
         // 会输出 ERROR 日志。那不是故障, 不应该弹错误框吓人 —— 这里打标记, 由
         // showErrorAlert 判断后跳过。
-        isUserInitiatedDisconnect = true
+        userDisconnectAt = Date()
 
         print("🔌 [SessionConnectionManager] Disconnecting current connection")
         
@@ -1489,13 +1506,11 @@ typealias ActionConfirmationCallback = (ScrcpyAction, @escaping () -> Void) -> V
         return raw
     }
 
-    /// 是否为用户主动关闭会话(主动关闭时的"连接被重置"不算故障, 不弹框)
-    private var isUserInitiatedDisconnect = false
-
     private func showErrorAlert(with errorMessage: String) {
-        if isUserInitiatedDisconnect {
-            print("🔕 [SessionConnectionManager] 用户主动断开导致的报错, 不弹框: \(errorMessage.prefix(80))")
-            isUserInitiatedDisconnect = false
+        // 用户主动断开后的短时间内, 设备端因客户端消失而报的错不算故障, 不弹框。
+        // 用时间窗口而不是永久标记, 避免把之后真正的错误也吞掉。
+        if let t = userDisconnectAt, Date().timeIntervalSince(t) < 10 {
+            print("🔕 [SessionConnectionManager] 用户主动断开(\(String(format: "%.1f", Date().timeIntervalSince(t)))秒前)导致的报错, 不弹框: \(errorMessage.prefix(80))")
             return
         }
         guard let frontmostWindow = getFrontmostWindow() else {
