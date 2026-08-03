@@ -14,7 +14,6 @@
 void ScrcpyUpdateStatus(enum ScrcpyStatus status, const char *message);
 
 // 诊断标记(确认日志在工作 / 标记关键节点)
-void ScrcpyDiagnosticMark(const char *tag);
 
 @protocol ScrcpyClientProtocol <NSObject>
 

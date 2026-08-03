@@ -91,13 +91,6 @@ static void scrcpy_install_exit_diagnostic(void) {
     NSSetUncaughtExceptionHandler(&scrcpy_exception_handler);
 }
 
-// 会话开始时打一条标记, 用于确认日志确实在工作(便于排查"日志里搜不到内容")
-void ScrcpyDiagnosticMark(const char *tag) {
-    printf("[DIAG] %s\n", tag ?: "");
-    fflush(stdout);
-    NSLog(@"[DIAG] %s", tag ?: "");
-}
-
 // scrcpy 移植层(C)里的状态文案是硬编码英文, 且已编进静态库改不动。
 // 这里是所有状态通知的唯一出口, 统一做本地化映射, 各监听方(ObjC/Swift)都能拿到中文。
 static NSString *ScrcpyLocalizedStatusMessage(NSString *message) {
