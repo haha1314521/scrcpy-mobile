@@ -247,7 +247,11 @@ struct MainContentView: View {
         case ScrcpyStatusDisconnected:
             print("🔌 [MainContentView] Connection disconnected, restoring navigation bar and cleaning up")
             isNavigationBarHidden = false
-            userDismissedConnection = false // 重置用户关闭标志
+            // 注意: 这里不再重置 userDismissedConnection。
+            // 用户主动取消后, 底层会先报"已断开"再补一条"连接失败";
+            // 若此处把标记清掉, 那条迟到的失败状态就会让连接界面重新出现、
+            // 导航栏再次被隐藏(表现为顶部按钮消失, 要再进一次会话才恢复)。
+            // 该标记统一在发起新连接时(connectToSession)重置。
             currentStatusMessage = nil
             print("🧹 [MainContentView] currentStatusMessage cleared after disconnect")
 
@@ -320,7 +324,7 @@ struct MainContentView: View {
                         .disabled(connectionManager.isConnecting)
                     }
                 }
-                .navigationBarHidden(isNavigationBarHidden)
+                .navigationBarHidden(shouldShowConnectionStatusView)   // 由状态推导, 避免手动开关产生的竞态
                 .sheet(isPresented: $isSettingsPresented) {
                     SettingsView()
                         .environmentObject(appSettings)
@@ -397,7 +401,7 @@ struct MainContentView: View {
                 }) {
                     Image(systemName: "plus")
                 }.disabled(connectionManager.isConnecting))
-                .navigationBarHidden(isNavigationBarHidden)
+                .navigationBarHidden(shouldShowConnectionStatusView)   // 由状态推导, 避免手动开关产生的竞态
                 .sheet(isPresented: $isSettingsPresented) {
                     SettingsView()
                         .environmentObject(appSettings)
