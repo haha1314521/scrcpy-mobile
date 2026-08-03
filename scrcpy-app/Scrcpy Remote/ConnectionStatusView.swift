@@ -449,17 +449,18 @@ struct ConnectionStatusView: View {
     private var defaultStatusMessage: String {
         switch connectionStatus {
         case ScrcpyStatusConnecting:
-            return "Establishing network connection to \(displaySession.sessionModel.hostReal):\(displaySession.sessionModel.port)"
+            return String(format: NSLocalizedString("Establishing network connection to %@", comment: "Connecting status"),
+                          "\(displaySession.sessionModel.hostReal):\(displaySession.sessionModel.port)")
         case ScrcpyStatusADBConnected:
-            return "ADB protocol connection established successfully"
+            return NSLocalizedString("ADB protocol connection established successfully", comment: "")
         case ScrcpyStatusSDLWindowCreated:
-            return "Creating display window for remote screen"
+            return NSLocalizedString("Creating display window for remote screen", comment: "")
         case ScrcpyStatusConnected, ScrcpyStatusSDLWindowAppeared:
-            return "Connection established successfully"
+            return NSLocalizedString("Connection established successfully", comment: "")
         case ScrcpyStatusConnectingFailed:
-            return "Failed to establish connection"
+            return NSLocalizedString("Failed to establish connection", comment: "")
         default:
-            return "Preparing connection..."
+            return NSLocalizedString("Preparing connection...", comment: "")
         }
     }
     
