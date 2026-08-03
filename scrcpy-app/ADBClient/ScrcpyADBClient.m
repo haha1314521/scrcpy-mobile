@@ -81,6 +81,9 @@ void ScrcpyTryResetVideo(void) {
 // Property for scrcpy status
 @property (nonatomic, assign) enum ScrcpyStatus scrcpyStatus;
 
+// 用户在"连接中"阶段关闭会话的标记(防止异步回调继续启动 scrcpy)
+@property (nonatomic, assign) BOOL sessionCancelled;
+
 // Background timer to control bakcground activities
 @property (nonatomic, strong) NSTimer *backgroundTimer;
 @property (nonatomic, assign) NSTimeInterval lastBackgroundCheckTime;
@@ -169,9 +172,10 @@ void ScrcpyTryResetVideo(void) {
 
 - (void)startWithArguments:(NSDictionary *)arguments completion:(void (^)(enum ScrcpyStatus, NSString *))completion {
     NSLog(@"🟢 Starting connect ADB device..");
-    
+
     // Init scrcpy status
     self.scrcpyStatus = ScrcpyStatusDisconnected;
+    self.sessionCancelled = NO;   // 新连接开始, 重置取消标记
     
     [self setupScrcpyEnvs];
     
@@ -390,6 +394,11 @@ void ScrcpyTryResetVideo(void) {
 }
 
 - (void)startScrcpy:(NSString *)serial {
+    // 用户在 ADB 连接阶段就关闭了会话 -> 不要再启动 scrcpy/SDL
+    if (self.sessionCancelled) {
+        NSLog(@"🚫 [ScrcpyADBClient] Session cancelled during connecting, skip starting scrcpy");
+        return;
+    }
     self.scrcpyStatus = ScrcpyStatusConnecting;
     ScrcpyUpdateStatus(ScrcpyStatusConnecting, "Connecting to ADB device");
     
@@ -459,14 +468,22 @@ void ScrcpyTryResetVideo(void) {
 }
 
 -(void)stopScrcpy {
-    // Call SQL_Quit to send Quit Event
-    SDL_Event event;
-    event.type = SDL_QUIT;
-    SDL_PushEvent(&event);
-    
+    // 标记已取消: ADB 连接是异步的, 取消后可能仍会回调进 startScrcpy, 必须拦住
+    self.sessionCancelled = YES;
+
+    // SDL 直到 startScrcpy 才初始化。若用户在"连接中"阶段就关闭会话,
+    // 此时对未初始化的 SDL 推事件会崩溃 —— 先判断再推。
+    if (SDL_WasInit(SDL_INIT_EVENTS)) {
+        SDL_Event event;
+        event.type = SDL_QUIT;
+        SDL_PushEvent(&event);
+    } else {
+        NSLog(@"🔌 [ScrcpyADBClient] SDL not initialized yet, skip SDL_QUIT");
+    }
+
     // 使用新的 ScrcpyUpdateStatus 函数发送断开连接状态通知
     ScrcpyUpdateStatus(ScrcpyStatusDisconnected, "User disconnected from ADB client");
-    
+
     NSLog(@"🔌 [ScrcpyADBClient] Disconnection initiated - status notification sent");
 }
 
