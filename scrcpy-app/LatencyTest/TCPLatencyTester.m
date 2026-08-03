@@ -163,9 +163,9 @@
     NSNumber *latencyMs = nil;
     
     @try {
-        // Record overall start time
-        NSDate *overallStartTime = [NSDate date];
-        LOG_DEBUG("TCP test started at: %s", [[overallStartTime description] UTF8String]);
+        // 计时不包含域名解析(冷启动无 DNS 缓存时可能耗时数秒, 会让首次延迟虚高),
+        // 真正的计时在下方解析完成后开始。
+        NSDate *overallStartTime = nil;
         
         // Create socket
         LOG_DEBUG("Creating socket...");
@@ -233,6 +233,9 @@
         memcpy(&serverAddr, resolved->ai_addr, resolved->ai_addrlen);
         freeaddrinfo(resolved);
         LOG_DEBUG("Hostname resolved (family: %s)", addrFamily == AF_INET6 ? "IPv6" : "IPv4");
+
+        // 解析完成, 开始计时(只测网络往返)
+        overallStartTime = [NSDate date];
 
         // Recreate the socket if the resolved family is not IPv4 (socket above
         // was created as AF_INET)

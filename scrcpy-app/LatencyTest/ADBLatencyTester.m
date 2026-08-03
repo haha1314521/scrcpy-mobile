@@ -174,8 +174,12 @@
         
         @try {
             // Record overall start time
-            NSDate *overallStartTime = [NSDate date];
-            LOG_DEBUG("Test started at: %s", [[overallStartTime description] UTF8String]);
+            // 注意: 这里先不计时。域名解析(getaddrinfo)在没有 DNS 缓存时可能耗时
+            // 数秒(实测冷启动一次用了 2.7 秒), 那是一次性的名称解析开销, 不属于
+            // 网络往返延迟。若算进去, 首次测速会虚高到几千毫秒, 再点一次(走缓存)
+            // 又恢复正常 —— 正是用户反馈的现象。
+            // 真正的计时在域名解析完成之后开始。
+            NSDate *overallStartTime = nil;
             
             // Resolve hostname first - getaddrinfo supports both IPv4 (A) and
             // IPv6 (AAAA) records; the legacy gethostbyname is IPv4-only and
@@ -204,6 +208,10 @@
             memcpy(&serverAddr, resolved->ai_addr, resolved->ai_addrlen);
             freeaddrinfo(resolved);
             LOG_DEBUG("Hostname resolved (family: %s)", addrFamily == AF_INET6 ? "IPv6" : "IPv4");
+
+            // 域名解析已完成, 从这里开始计时(只测网络往返, 不含 DNS)
+            overallStartTime = [NSDate date];
+            LOG_DEBUG("Test timing started (after DNS)");
 
             // Create socket matching the resolved address family
             LOG_DEBUG("Creating socket...");
