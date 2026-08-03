@@ -517,8 +517,13 @@
     NSDate *startTime = [NSDate date];
     LOG_DEBUG("Running ADB command: adb shell echo ping");
     
-    // Run a simple command to test connectivity and measure round-trip time
-    [ADBClient.shared executeADBCommandAsync:@[@"shell", @"echo", @"ping"] callback:^(NSString * _Nullable output, int returnCode) {
+    // Run a simple command to test connectivity and measure round-trip time.
+    // 显式指定本次要测的设备: 测延迟发生在会话之外, adb 里可能连着多台设备,
+    // 不指定就会报 "more than one device/emulator"。
+    NSArray *pingCmd = self.deviceSerial.length > 0
+        ? @[@"-s", self.deviceSerial, @"shell", @"echo", @"ping"]
+        : @[@"shell", @"echo", @"ping"];
+    [ADBClient.shared executeADBCommandAsync:pingCmd callback:^(NSString * _Nullable output, int returnCode) {
         NSDate *endTime = [NSDate date];
         LOG_DEBUG("ADB command completed with return code: %d", returnCode);
         

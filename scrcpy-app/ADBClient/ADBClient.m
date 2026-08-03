@@ -196,6 +196,30 @@ void adb_connect_status_updated(const char *serial, const char *status)
     return [self executeADBCommandUnderlying:commands returnCode:returnCode];
 }
 
+// 针对具体设备的命令自动补 -s <serial>:
+// adb 里同时连着多台设备时, 不指定设备的命令会直接失败(more than one device/emulator)。
+// connect/disconnect/devices 等全局命令不需要, 也不能加。
+- (NSArray<NSString *> *)commandsWithSerial:(NSArray<NSString *> *)commands
+{
+    if (commands.count == 0) return commands;
+    NSString *serial = self.currentSerial;
+    if (serial.length == 0) return commands;
+    if ([commands containsObject:@"-s"]) return commands;   // 调用方已指定
+
+    static NSSet *globalCmds = nil;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        globalCmds = [NSSet setWithArray:@[@"connect", @"disconnect", @"devices",
+                                           @"kill-server", @"start-server",
+                                           @"version", @"help", @"pair"]];
+    });
+    if ([globalCmds containsObject:commands.firstObject]) return commands;
+
+    NSMutableArray *withSerial = [NSMutableArray arrayWithObjects:@"-s", serial, nil];
+    [withSerial addObjectsFromArray:commands];
+    return withSerial;
+}
+
 - (void)executeADBCommandAsync:(NSArray<NSString *> *)commands callback:(ADBClientCallback)callback
 {
     if (!_isADBLaunched) {
@@ -203,10 +227,12 @@ void adb_connect_status_updated(const char *serial, const char *status)
         if (callback) { callback(nil, -1); }
         return;
     }
-    
+
+    NSArray<NSString *> *finalCommands = [self commandsWithSerial:commands];
+
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^{
         int returnCode = -1;
-        NSString *output = [self executeADBCommand:commands returnCode:&returnCode];
+        NSString *output = [self executeADBCommand:finalCommands returnCode:&returnCode];
         if (callback) { callback(output, returnCode); }
     });
 }

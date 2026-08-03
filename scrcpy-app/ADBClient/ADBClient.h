@@ -38,6 +38,11 @@ typedef void (^ADBClientCallback)(NSString * _Nullable output, int returnCode);
 @property (nonatomic, assign, readonly) BOOL isADBLaunched;
 @property (nonatomic, assign, readonly) int listenPort;
 
+/// 当前会话的设备序列号(host:port)。
+/// 设置后, 所有针对设备的 adb 命令会自动加上 -s <serial>,
+/// 否则 adb 里同时存在多个设备时会报 "more than one device/emulator"。
+@property (nonatomic, copy, nullable) NSString *currentSerial;
+
 + (instancetype)shared;
 
 // Execute ADB Command sync

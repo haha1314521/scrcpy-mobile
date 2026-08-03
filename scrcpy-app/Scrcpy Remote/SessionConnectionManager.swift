@@ -1437,17 +1437,49 @@ typealias ActionConfirmationCallback = (ScrcpyAction, @escaping () -> Void) -> V
     
     /// 显示错误Alert给用户
     /// - Parameter errorMessage: 错误消息
+    /// 把 adb/scrcpy 原样输出的英文错误换成中文说明(未收录的原样保留)
+    static func localizedDeviceError(_ raw: String) -> String {
+        let table: [(String, String)] = [
+            ("more than one device/emulator",
+             "adb 中连接了多个设备，无法确定要操作哪一台。请在设置里断开其它设备后重试。"),
+            ("device unauthorized",
+             "设备未授权。请在安卓设备上确认并接受 ADB 授权请求。"),
+            ("device offline",
+             "设备离线。请检查设备是否已开启无线调试并处于同一网络。"),
+            ("device not found",
+             "找不到设备。请确认设备已开启 ADB 并可访问。"),
+            ("no devices/emulators found",
+             "没有找到任何设备。"),
+            ("Connection refused",
+             "连接被拒绝。请确认设备已执行 adb tcpip 并开放了该端口。"),
+            ("Operation timed out",
+             "连接超时。请检查网络是否可达。"),
+            ("Network is unreachable",
+             "网络不可达。请检查网络连接。"),
+            ("No route to host",
+             "无法路由到该主机。请检查地址与网络。"),
+            ("failed to connect",
+             "连接失败。"),
+        ]
+        for (en, zh) in table where raw.localizedCaseInsensitiveContains(en) {
+            return zh + "\n\n(" + raw.trimmingCharacters(in: .whitespacesAndNewlines) + ")"
+        }
+        return raw
+    }
+
     private func showErrorAlert(with errorMessage: String) {
         guard let frontmostWindow = getFrontmostWindow() else {
             print("❌ [SessionConnectionManager] No frontmost window found, cannot show error alert")
             return
         }
-        
+
         print("🚨 [SessionConnectionManager] Showing error alert to user")
-        
+
+        let errorMessage = Self.localizedDeviceError(errorMessage)
+
         // 限制错误消息长度，避免Alert过大
         let maxLength = 500
-        let truncatedMessage = errorMessage.count > maxLength ? 
+        let truncatedMessage = errorMessage.count > maxLength ?
             String(errorMessage.prefix(maxLength)) + "..." : errorMessage
         
         let alert = UIAlertController(

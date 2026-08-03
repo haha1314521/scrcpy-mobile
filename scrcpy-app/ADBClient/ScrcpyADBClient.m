@@ -183,6 +183,10 @@ void ScrcpyTryResetVideo(void) {
     NSString *port = arguments[@"port"];
     NSString *serial = [NSString stringWithFormat:@"%@:%@", host, port];
 
+    // 记录本次会话的设备, 后续 adb 命令(重启/剪贴板/文件传输/测延迟等)会自动带 -s,
+    // 避免 adb 里同时存在多个设备时报 "more than one device/emulator"
+    ADBClient.shared.currentSerial = serial;
+
     // Update session completion and arguments
     self.sessionCompletion = completion;
     self.sessionArguments = arguments;
