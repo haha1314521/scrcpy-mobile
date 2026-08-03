@@ -143,6 +143,31 @@ static NSString *ScrcpyLocalizedStatusMessage(NSString *message) {
     if (best) {
         return [map[best] stringByAppendingString:[message substringFromIndex:best.length]];
     }
+
+    // 3) 带可变内容(域名/地址/系统错误串)的报错: 用关键词匹配, 给中文解释并保留原文
+    static NSArray<NSArray<NSString *> *> *patterns = nil;
+    static dispatch_once_t once2;
+    dispatch_once(&once2, ^{
+        patterns = @[
+            @[@"failed to resolve host",   @"无法解析域名。请检查网络连接，或确认域名填写是否正确。"],
+            @[@"nodename nor servname",    @"无法解析域名。请检查网络连接，或确认域名填写是否正确。"],
+            @[@"Name or service not known",@"无法解析域名。请检查网络连接，或确认域名填写是否正确。"],
+            @[@"unauthorized",             @"设备未授权。请在安卓设备上确认并接受 ADB 授权请求。"],
+            @[@"device offline",           @"设备离线。请确认设备已开启无线调试且在线。"],
+            @[@"Connection refused",       @"连接被拒绝。请确认设备已执行 adb tcpip 并开放了该端口。"],
+            @[@"No route to host",         @"无法访问该主机。请检查地址与网络。"],
+            @[@"Network is unreachable",   @"网络不可达。请检查网络连接。"],
+            @[@"Operation timed out",      @"连接超时。请检查网络是否可达。"],
+            @[@"timed out",                @"连接超时。请检查网络是否可达。"],
+            @[@"more than one device",     @"检测到多个设备，无法确定操作对象。"],
+        ];
+    });
+    for (NSArray<NSString *> *p in patterns) {
+        if ([message rangeOfString:p[0] options:NSCaseInsensitiveSearch].location != NSNotFound) {
+            return [NSString stringWithFormat:@"%@\n\n(%@)", p[1],
+                    [message stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]]];
+        }
+    }
     return message;
 }
 

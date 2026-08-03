@@ -205,7 +205,14 @@ void ScrcpyTryResetVideo(void) {
         
         if (returnCode != 0 || [connectResult containsString:@"failed"]) {
             NSLog(@"❌ ADB connect failed: %@", connectResult);
-            ScrcpyUpdateStatus(ScrcpyStatusConnectingFailed, [connectResult stringByAppendingString:authTips].UTF8String);
+            // 只有确实是授权问题才提示去设备上授权。
+            // 之前无条件拼接, 导致"域名解析失败"这类错误后面也跟着一句
+            // "请在设备上确认并接受 ADB 授权请求", 误导排查方向。
+            BOOL authRelated = [connectResult containsString:@"unauthorized"] ||
+                               [connectResult containsString:@"authorizing"] ||
+                               [connectResult containsString:@"authenticate"];
+            NSString *message = authRelated ? [connectResult stringByAppendingString:authTips] : connectResult;
+            ScrcpyUpdateStatus(ScrcpyStatusConnectingFailed, message.UTF8String);
             return;
         }
         
