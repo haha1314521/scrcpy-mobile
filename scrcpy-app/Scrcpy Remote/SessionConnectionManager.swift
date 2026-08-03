@@ -1440,6 +1440,22 @@ typealias ActionConfirmationCallback = (ScrcpyAction, @escaping () -> Void) -> V
     /// 把 adb/scrcpy 原样输出的英文错误换成中文说明(未收录的原样保留)
     static func localizedDeviceError(_ raw: String) -> String {
         let table: [(String, String)] = [
+            // 连接中途断开(设备端 scrcpy 服务写画面失败)
+            ("ECONNRESET",
+             "投屏连接被中断。多见于网络切换/信号不稳，或会话被关闭。请重新连接。"),
+            ("Connection reset by peer",
+             "投屏连接被对端重置。请检查网络后重新连接。"),
+            ("EPIPE",
+             "投屏连接已断开（管道已关闭）。请重新连接。"),
+            ("Broken pipe",
+             "投屏连接已断开。请重新连接。"),
+            ("Software caused connection abort",
+             "连接被系统中断。多见于网络切换或应用进入后台过久。"),
+            ("ETIMEDOUT",
+             "连接超时。请检查网络是否稳定。"),
+            ("Capture/encoding error",
+             "设备端录屏或编码出错，投屏已中断。"),
+            // adb / 网络层
             ("more than one device/emulator",
              "adb 中连接了多个设备，无法确定要操作哪一台。请在设置里断开其它设备后重试。"),
             ("device unauthorized",
