@@ -7,6 +7,41 @@
 
 #import "ScrcpyCommon.h"
 #import <Foundation/Foundation.h>
+#import <execinfo.h>
+#import <stdlib.h>
+
+// ===== 退出诊断 =====
+// 现象: App 有时"闪退"却不产生任何崩溃日志。崩溃(含被系统杀)一定会留 .ips,
+// 不留日志说明是进程正常退出(exit)。App 内置了完整 adb 命令行代码, 而 adb 是
+// 命令行程序, 出错时会直接 exit() 结束进程 —— 在 App 里就表现为整个软件消失。
+// 这里注册 atexit 钩子: 一旦有人调用 exit, 就把调用栈打进日志, 直接定位是谁干的。
+static void scrcpy_exit_diagnostic(void) {
+    void *frames[64];
+    int n = backtrace(frames, 64);
+    char **symbols = backtrace_symbols(frames, n);
+    printf("\n[EXIT] ======== 进程正在退出(exit 被调用) ========\n");
+    if (symbols) {
+        for (int i = 0; i < n; i++) {
+            printf("[EXIT] #%02d %s\n", i, symbols[i]);
+        }
+        free(symbols);
+    }
+    printf("[EXIT] ======== 调用栈结束 ========\n");
+    fflush(stdout);
+    fflush(stderr);
+}
+
+__attribute__((constructor))
+static void scrcpy_install_exit_diagnostic(void) {
+    atexit(scrcpy_exit_diagnostic);
+}
+
+// 会话开始时打一条标记, 用于确认日志确实在工作(便于排查"日志里搜不到内容")
+void ScrcpyDiagnosticMark(const char *tag) {
+    printf("[DIAG] %s\n", tag ?: "");
+    fflush(stdout);
+    NSLog(@"[DIAG] %s", tag ?: "");
+}
 
 // scrcpy 移植层(C)里的状态文案是硬编码英文, 且已编进静态库改不动。
 // 这里是所有状态通知的唯一出口, 统一做本地化映射, 各监听方(ObjC/Swift)都能拿到中文。

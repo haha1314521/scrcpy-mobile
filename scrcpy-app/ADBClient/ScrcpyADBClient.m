@@ -172,6 +172,7 @@ void ScrcpyTryResetVideo(void) {
 
 - (void)startWithArguments:(NSDictionary *)arguments completion:(void (^)(enum ScrcpyStatus, NSString *))completion {
     NSLog(@"🟢 Starting connect ADB device..");
+    ScrcpyDiagnosticMark("=== session begin: connecting adb ===");
 
     // Init scrcpy status
     self.scrcpyStatus = ScrcpyStatusDisconnected;
@@ -398,6 +399,7 @@ void ScrcpyTryResetVideo(void) {
 }
 
 - (void)startScrcpy:(NSString *)serial {
+    ScrcpyDiagnosticMark("=== enter startScrcpy (SDL init next) ===");
     // 用户在 ADB 连接阶段就关闭了会话 -> 不要再启动 scrcpy/SDL
     if (self.sessionCancelled) {
         NSLog(@"🚫 [ScrcpyADBClient] Session cancelled during connecting, skip starting scrcpy");
@@ -459,7 +461,9 @@ void ScrcpyTryResetVideo(void) {
         args[i] = (char *)[startArgs[i] UTF8String];
     }
     
+    ScrcpyDiagnosticMark("=== calling scrcpy_main (blocks until session ends) ===");
     scrcpy_main((int)startArgs.count, (char **)args);
+    ScrcpyDiagnosticMark("=== scrcpy_main returned (session ended normally) ===");
     SDL_iPhoneSetEventPump(SDL_FALSE);
     
     // Remove SDL event filter to avoid blocking events
@@ -472,6 +476,7 @@ void ScrcpyTryResetVideo(void) {
 }
 
 -(void)stopScrcpy {
+    ScrcpyDiagnosticMark("=== user requested stopScrcpy ===");
     // 标记已取消: ADB 连接是异步的, 取消后可能仍会回调进 startScrcpy, 必须拦住
     self.sessionCancelled = YES;
 
