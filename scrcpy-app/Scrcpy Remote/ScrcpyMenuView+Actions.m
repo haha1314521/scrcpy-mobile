@@ -616,6 +616,27 @@
 - (void)saveCapturedScreenshotAtPath:(NSString *)localPath {
     UIImage *image = [UIImage imageWithContentsOfFile:localPath];
     NSString *sizeText = image ? [NSString stringWithFormat:@"%.0f × %.0f", image.size.width, image.size.height] : @"";
+    if (!image) {
+        // 读不出图说明 pull 回来的不是有效 PNG, 别再往相册塞了
+        NSLog(@"📷 pulled file is not a valid image: %@", localPath);
+        [self showCaptureHUD:NSLocalizedString(@"Screenshot failed", nil) autoHide:YES];
+        return;
+    }
+
+    // 文件名带时间戳, 一是相册里好认, 二是留档不会互相覆盖
+    NSDateFormatter *fmt = [[NSDateFormatter alloc] init];
+    fmt.dateFormat = @"yyyyMMdd_HHmmss";
+    NSString *fileName = [NSString stringWithFormat:@"scrcpy_%@.png", [fmt stringFromDate:[NSDate date]]];
+
+    // 同时在 App 的 Documents 里留一份:
+    // 相册那条路万一被系统权限挡住, 还能从「文件」App → 我的 iPhone → Scrcpy Remote 取。
+    NSString *docs = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject;
+    NSString *keepPath = [docs stringByAppendingPathComponent:fileName];
+    NSError *copyError = nil;
+    [[NSFileManager defaultManager] copyItemAtPath:localPath toPath:keepPath error:&copyError];
+    if (copyError) {
+        NSLog(@"📷 keep a copy in Documents failed: %@", copyError);
+    }
 
     __weak typeof(self) weakSelf = self;
     [PHPhotoLibrary requestAuthorizationForAccessLevel:PHAccessLevelAddOnly
@@ -628,25 +649,42 @@
             return;
         }
 
+        __block NSString *localIdentifier = nil;
+
         // 用 addResourceWithType:fileURL: 直接写入原始 PNG 文件,
         // 不经过 UIImage 重新编码, 像素和文件内容都是原样。
         [[PHPhotoLibrary sharedPhotoLibrary] performChanges:^{
             PHAssetCreationRequest *request = [PHAssetCreationRequest creationRequestForAsset];
+
+            PHAssetResourceCreationOptions *options = [[PHAssetResourceCreationOptions alloc] init];
+            options.originalFilename = fileName;
             [request addResourceWithType:PHAssetResourceTypePhoto
                                  fileURL:[NSURL fileURLWithPath:localPath]
-                                 options:nil];
+                                 options:options];
+
+            // ★ 必须显式指定创建时间。
+            //   不指定的话系统会去读文件自身的时间戳, 而 adb pull 保留的是安卓那边的
+            //   文件时间 —— 安卓设备时间只要和现在对不上, 照片就会被排到相册很久以前的
+            //   位置, 表现为"提示保存成功但相册里找不到"。
+            request.creationDate = [NSDate date];
+
+            localIdentifier = request.placeholderForCreatedAsset.localIdentifier;
         } completionHandler:^(BOOL success, NSError * _Nullable error) {
             __strong typeof(weakSelf) self = weakSelf;
             if (!self) return;
 
             if (success) {
-                NSString *msg = sizeText.length > 0
-                    ? [NSString stringWithFormat:@"%@  (%@)", NSLocalizedString(@"Saved to Photos", nil), sizeText]
-                    : NSLocalizedString(@"Saved to Photos", nil);
-                [self showCaptureHUD:msg autoHide:YES];
+                NSLog(@"📷 saved to photos, id=%@, file=%@", localIdentifier, fileName);
+                [self showCaptureHUD:[NSString stringWithFormat:@"%@  %@",
+                                      NSLocalizedString(@"Saved to Photos", nil), sizeText]
+                            autoHide:YES];
             } else {
                 NSLog(@"📷 save to photos failed: %@", error);
-                [self showCaptureHUD:NSLocalizedString(@"Failed to save to Photos", nil) autoHide:YES];
+                // 相册失败也没关系, Documents 那份还在
+                [self showCaptureHUD:[NSString stringWithFormat:@"%@\n%@",
+                                      NSLocalizedString(@"Failed to save to Photos", nil),
+                                      NSLocalizedString(@"A copy is kept in Files app", nil)]
+                            autoHide:YES];
             }
         }];
     }];
