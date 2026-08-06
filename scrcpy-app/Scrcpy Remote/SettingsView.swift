@@ -285,8 +285,7 @@ struct SettingsView: View {
     var body: some View {
         NavigationView {
             List {
-                // 第一组不要分组标题(原来是 "General"), 跟系统设置的排版一致
-                Section {
+                Section(header: Text("General")) {
                     NavigationLink(destination: AppearanceSettingsView()) {
                         Text("Appearance")
                     }
