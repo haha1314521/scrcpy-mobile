@@ -481,6 +481,9 @@ void ScrcpyTryResetVideo(void) {
     // 标记已取消: ADB 连接是异步的, 取消后可能仍会回调进 startScrcpy, 必须拦住
     self.sessionCancelled = YES;
 
+    // 会话都结束了, 别再拿静音音频占着后台耗电
+    [self stopSilenceKeepAlive];
+
     // SDL 直到 startScrcpy 才初始化。若用户在"连接中"阶段就关闭会话,
     // 此时对未初始化的 SDL 推事件会崩溃 —— 先判断再推。
     if (SDL_WasInit(SDL_INIT_EVENTS)) {
@@ -618,9 +621,110 @@ NSTimeInterval ScrcpyBackgroundKeepAliveSeconds(void) {
     return seconds.doubleValue;
 }
 
+#pragma mark - 后台静音保活
+
+// 光靠 beginBackgroundTask 是保不住的: 现代 iOS 对"过期后再申请一个"给的时间很有限,
+// 几十秒到几分钟就不再续, 进程一挂起 socket 就断, 回来只能重连。
+//
+// 真正能长期后台的办法是让系统认为 App 正在播放音频 —— Info.plist 里的 audio 后台模式
+// 只是"允许", 必须真的有音频在播才作数。这里播一段无限循环的静音。
+//
+// 用 MixWithOthers, 不会打断用户正在听的音乐/播客。
+// 代价是耗电明显上升, 所以只在用户把保持时长设成 5 分钟以上(或"始终")时才启用。
+static AVAudioPlayer *sScrcpySilencePlayer = nil;
+
+// 生成一小段静音 WAV(避免往工程里塞资源文件)
+static NSString *ScrcpySilenceFilePath(void) {
+    NSString *path = [NSTemporaryDirectory() stringByAppendingPathComponent:@"scrcpy_silence.wav"];
+    if ([[NSFileManager defaultManager] fileExistsAtPath:path]) {
+        return path;
+    }
+
+    const uint32_t sampleRate = 8000;
+    const uint16_t channels = 1;
+    const uint16_t bitsPerSample = 16;
+    const uint32_t seconds = 1;
+    const uint32_t dataBytes = sampleRate * channels * (bitsPerSample / 8) * seconds;
+    const uint32_t byteRate = sampleRate * channels * (bitsPerSample / 8);
+    const uint16_t blockAlign = channels * (bitsPerSample / 8);
+    const uint32_t chunkSize = 36 + dataBytes;
+    const uint32_t subchunk1Size = 16;
+    const uint16_t audioFormat = 1;   // PCM
+
+    NSMutableData *wav = [NSMutableData data];
+    [wav appendBytes:"RIFF" length:4];
+    [wav appendBytes:&chunkSize length:4];
+    [wav appendBytes:"WAVE" length:4];
+    [wav appendBytes:"fmt " length:4];
+    [wav appendBytes:&subchunk1Size length:4];
+    [wav appendBytes:&audioFormat length:2];
+    [wav appendBytes:&channels length:2];
+    [wav appendBytes:&sampleRate length:4];
+    [wav appendBytes:&byteRate length:4];
+    [wav appendBytes:&blockAlign length:2];
+    [wav appendBytes:&bitsPerSample length:2];
+    [wav appendBytes:"data" length:4];
+    [wav appendBytes:&dataBytes length:4];
+    [wav increaseLengthBy:dataBytes];   // 全 0 = 静音
+
+    if (![wav writeToFile:path atomically:YES]) {
+        NSLog(@"Silence keep-alive: write wav failed");
+        return nil;
+    }
+    return path;
+}
+
+- (void)startSilenceKeepAlive {
+    if (sScrcpySilencePlayer.isPlaying) {
+        return;
+    }
+
+    NSString *path = ScrcpySilenceFilePath();
+    if (!path) return;
+
+    NSError *error = nil;
+    AVAudioSession *session = [AVAudioSession sharedInstance];
+    [session setCategory:AVAudioSessionCategoryPlayback
+             withOptions:AVAudioSessionCategoryOptionMixWithOthers
+                   error:&error];
+    if (error) {
+        NSLog(@"Silence keep-alive: set category failed: %@", error);
+    }
+    [session setActive:YES error:&error];
+    if (error) {
+        NSLog(@"Silence keep-alive: activate session failed: %@", error);
+    }
+
+    sScrcpySilencePlayer = [[AVAudioPlayer alloc] initWithContentsOfURL:[NSURL fileURLWithPath:path] error:&error];
+    if (!sScrcpySilencePlayer) {
+        NSLog(@"Silence keep-alive: create player failed: %@", error);
+        return;
+    }
+    sScrcpySilencePlayer.numberOfLoops = -1;   // 无限循环
+    sScrcpySilencePlayer.volume = 0.0;
+    [sScrcpySilencePlayer play];
+    NSLog(@"Silence keep-alive: started");
+}
+
+- (void)stopSilenceKeepAlive {
+    if (!sScrcpySilencePlayer) return;
+
+    [sScrcpySilencePlayer stop];
+    sScrcpySilencePlayer = nil;
+    [[AVAudioSession sharedInstance] setActive:NO
+                                   withOptions:AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation
+                                         error:nil];
+    NSLog(@"Silence keep-alive: stopped");
+}
+
 - (void)onApplicationDidEnterBackground:(NSNotification *)notification {
     NSTimeInterval beginBackgroundTime = [NSDate date].timeIntervalSince1970;
     NSTimeInterval keepAlive = ScrcpyBackgroundKeepAliveSeconds();
+
+    // 想在后台待超过几分钟, 必须靠音频保活撑着
+    if (keepAlive <= 0 || keepAlive > 300) {
+        [self startSilenceKeepAlive];
+    }
     NSLog(@"Background keep-alive: %@", keepAlive > 0
           ? [NSString stringWithFormat:@"%.0f 分钟", keepAlive / 60.0] : @"不限制");
 
@@ -652,7 +756,10 @@ NSTimeInterval ScrcpyBackgroundKeepAliveSeconds(void) {
 
 - (void)onApplicationDidBecomeActive:(NSNotification *)notification {
     NSLog(@"Application did become active, reset video");
-    
+
+    // 回到前台就不用再耗电撑着了
+    [self stopSilenceKeepAlive];
+
     // Stop background timer first
     [self stopBackgroundTimer];
     
