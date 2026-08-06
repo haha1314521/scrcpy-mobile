@@ -128,6 +128,10 @@ typealias ActionConfirmationCallback = (ScrcpyAction, @escaping () -> Void) -> V
     
     /// 后台断开连接计时器
     private var backgroundDisconnectTimer: Timer?
+
+    /// 进入后台的时刻 + 当时的会话,用于回到前台时判断要不要自动重连
+    private var backgroundEnterTime: Date?
+    private var sessionForAutoReconnect: ScrcpySessionModel?
     
     /// Live Activity 管理器
     private lazy var liveActivityManager: Any? = {
@@ -292,7 +296,17 @@ typealias ActionConfirmationCallback = (ScrcpyAction, @escaping () -> Void) -> V
     
     @objc private func handleApplicationDidEnterBackground() {
         print("📱 [SessionConnectionManager] Application did enter background")
-        
+
+        // 记下进后台的时刻和当时的会话，供回到前台时判断要不要自动重连
+        if connectionStatus.isActive, let session = currentSession {
+            backgroundEnterTime = Date()
+            sessionForAutoReconnect = session
+            print("🔁 [AutoReconnect] Remembered session \(session.sessionName) for possible reconnect")
+        } else {
+            backgroundEnterTime = nil
+            sessionForAutoReconnect = nil
+        }
+
         // 如果当前有活跃连接，启动 Live Activity
         startLiveActivityIfNeeded()
         
@@ -313,6 +327,72 @@ typealias ActionConfirmationCallback = (ScrcpyAction, @escaping () -> Void) -> V
         print("📱 [SessionConnectionManager] Application did become active")
         // 取消后台断开计时器
         stopBackgroundDisconnectTimer()
+
+        attemptAutoReconnectIfNeeded()
+    }
+
+    // MARK: - 回前台自动重连
+    //
+    // 背景: 就算 App 进程在后台没被杀(静音音频保活), 被控的安卓设备那边也可能掉线 ——
+    // 息屏后 WiFi 休眠 / 系统进 doze / 公网 NAT 映射超时, adb 都会变成 offline。
+    // 回到前台时会话其实已经废了, 原来的行为是直接甩回会话列表。
+    //
+    // 这里改成: 只要还在设置的"后台保持连接"时长之内, 就自动用同一个会话重连,
+    // 用户看到的是几秒重连, 而不是掉回列表页。超过设定时长则不管 —— 那本来就该断了。
+
+    private func attemptAutoReconnectIfNeeded() {
+        guard let enterTime = backgroundEnterTime,
+              let session = sessionForAutoReconnect else {
+            return
+        }
+        backgroundEnterTime = nil
+        sessionForAutoReconnect = nil
+
+        // 超过设定时长就不重连了(选"始终"时 seconds 为 nil, 永远算没超时)
+        let duration = AppSettings().backgroundActiveDuration
+        if let limit = duration.seconds {
+            let elapsed = Date().timeIntervalSince(enterTime)
+            if elapsed > limit {
+                print("🔁 [AutoReconnect] Background \(Int(elapsed))s exceeded limit \(Int(limit))s, skip")
+                return
+            }
+        }
+
+        // 目前只处理 ADB 会话
+        guard session.deviceType == .adb else { return }
+
+        // 等 App 完全恢复再探测, 否则刚回前台时 adb 状态还没稳定
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in
+            self?.probeDeviceAndReconnect(session)
+        }
+    }
+
+    private func probeDeviceAndReconnect(_ session: ScrcpySessionModel) {
+        let serial = "\(session.hostReal):\(session.port)"
+        print("🔁 [AutoReconnect] Probing \(serial) ...")
+
+        ADBClient.shared().executeADBCommandAsync(["-s", serial, "get-state"]) { [weak self] output, code in
+            let state = (output ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            let alive = (code == 0) && state.contains("device")
+            print("🔁 [AutoReconnect] get-state -> code=\(code), state=\(state), alive=\(alive)")
+
+            guard !alive else {
+                print("🔁 [AutoReconnect] Device still online, nothing to do")
+                return
+            }
+
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                // 会话确实断了 —— 让 UI 走一遍正常的连接流程(会显示连接中的界面)
+                print("🔁 [AutoReconnect] Device offline, requesting reconnect for \(session.sessionName)")
+                self.disconnectCurrent()
+                NotificationCenter.default.post(
+                    name: NSNotification.Name("ScrcpyAutoReconnectRequest"),
+                    object: nil,
+                    userInfo: ["sessionId": session.id]
+                )
+            }
+        }
     }
 
     // MARK: - Background Task Management

@@ -54,6 +54,17 @@ struct MainContentView: View {
         print("Reloaded sessions:", savedSessions.count)
     }
     
+    /// 回到前台时设备已掉线,由 SessionConnectionManager 发通知过来,这里走一遍正常连接流程
+    private func handleAutoReconnectRequest(_ note: Notification) {
+        guard let sessionId = note.userInfo?["sessionId"] as? UUID else { return }
+        guard let session = savedSessions.first(where: { $0.id == sessionId }) else {
+            print("🔁 [MainContentView] AutoReconnect: session \(sessionId) not found in list")
+            return
+        }
+        print("🔁 [MainContentView] AutoReconnect: reconnecting to \(session.title)")
+        connectToSession(session)
+    }
+
     /// 连接到指定会话
     private func connectToSession(_ session: ScrcpySession) {
         print("Connecting to session:", session.title)
@@ -350,6 +361,7 @@ struct MainContentView: View {
                 }
                 .overlay(connectionOverlay)
                 .onReceive(NotificationCenter.default.publisher(for: .startSchemeConnection)) { handleSchemeConnection($0) }
+                .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ScrcpyAutoReconnectRequest"))) { handleAutoReconnectRequest($0) }
                 .onAppear {
                     if savedSessions.isEmpty {
                         reloadSessions()
@@ -427,6 +439,7 @@ struct MainContentView: View {
                 }
                 .overlay(connectionOverlay)
                 .onReceive(NotificationCenter.default.publisher(for: .startSchemeConnection)) { handleSchemeConnection($0) }
+                .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ScrcpyAutoReconnectRequest"))) { handleAutoReconnectRequest($0) }
                 .onAppear {
                     if savedSessions.isEmpty {
                         reloadSessions()
