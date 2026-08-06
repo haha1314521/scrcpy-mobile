@@ -351,7 +351,7 @@
             cell.textLabel.text = NSLocalizedString(@"Capture Screenshot", nil);
             cell.textLabel.textColor = [UIColor whiteColor];
             cell.textLabel.font = [UIFont systemFontOfSize:16.0 weight:UIFontWeightMedium];
-            cell.detailTextLabel.text = NSLocalizedString(@"Save device screen to Photos", nil);
+            cell.detailTextLabel.text = NSLocalizedString(@"Save device screen to this iPhone", nil);
             cell.detailTextLabel.textColor = [[UIColor whiteColor] colorWithAlphaComponent:0.7];
             cell.detailTextLabel.font = [UIFont systemFontOfSize:12.0];
             return cell;

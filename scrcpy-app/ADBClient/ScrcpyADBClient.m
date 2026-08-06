@@ -567,11 +567,17 @@ void ScrcpyTryResetVideo(void) {
     
     // Sync clipboard after connected
     [self syncClipboardWithConnectedDevice];
-    
+
     // Make SDL Window visible after window created
     if (status != ScrcpyStatusSDLWindowCreated) {
         return;
     }
+
+    // ★ 后台保活的静音音频必须在【前台】就开始播。
+    //   iOS 不允许 App 已经进入后台之后再去激活音频会话(setActive 会直接失败),
+    //   所以不能等 didEnterBackground 再启动 —— 那时候已经晚了, 进程照样被挂起。
+    //   这里在会话画面就绪时就开播, 一直播到断开为止。
+    [self startSilenceKeepAliveIfNeeded];
     
     // Set SDL Window to current scene on main thread
     NSLog(@"SDL Window: %@", self.sdlDelegate.window);
@@ -674,6 +680,16 @@ static NSString *ScrcpySilenceFilePath(void) {
     return path;
 }
 
+// 只有把保持时长设成 5 分钟以上(或"始终")才值得为它耗电
+- (void)startSilenceKeepAliveIfNeeded {
+    NSTimeInterval keepAlive = ScrcpyBackgroundKeepAliveSeconds();
+    if (keepAlive > 0 && keepAlive <= 300) {
+        NSLog(@"Silence keep-alive: skipped (keep-alive %.0fs is short)", keepAlive);
+        return;
+    }
+    [self startSilenceKeepAlive];
+}
+
 - (void)startSilenceKeepAlive {
     if (sScrcpySilencePlayer.isPlaying) {
         return;
@@ -689,10 +705,12 @@ static NSString *ScrcpySilenceFilePath(void) {
                    error:&error];
     if (error) {
         NSLog(@"Silence keep-alive: set category failed: %@", error);
+        error = nil;
     }
     [session setActive:YES error:&error];
     if (error) {
         NSLog(@"Silence keep-alive: activate session failed: %@", error);
+        error = nil;
     }
 
     sScrcpySilencePlayer = [[AVAudioPlayer alloc] initWithContentsOfURL:[NSURL fileURLWithPath:path] error:&error];
@@ -701,9 +719,11 @@ static NSString *ScrcpySilenceFilePath(void) {
         return;
     }
     sScrcpySilencePlayer.numberOfLoops = -1;   // 无限循环
-    sScrcpySilencePlayer.volume = 0.0;
-    [sScrcpySilencePlayer play];
-    NSLog(@"Silence keep-alive: started");
+    // 音量给满, 但音频数据本身全是 0 —— 听不见任何声音。
+    // 不用 volume=0: 部分 iOS 版本会把"零输出"判定为没在播放, 从而收走后台时间。
+    sScrcpySilencePlayer.volume = 1.0;
+    BOOL ok = [sScrcpySilencePlayer play];
+    NSLog(@"Silence keep-alive: started=%@ (session active, playing in foreground)", ok ? @"YES" : @"NO");
 }
 
 - (void)stopSilenceKeepAlive {
@@ -721,11 +741,14 @@ static NSString *ScrcpySilenceFilePath(void) {
     NSTimeInterval beginBackgroundTime = [NSDate date].timeIntervalSince1970;
     NSTimeInterval keepAlive = ScrcpyBackgroundKeepAliveSeconds();
 
-    // 想在后台待超过几分钟, 必须靠音频保活撑着
-    if (keepAlive <= 0 || keepAlive > 300) {
-        [self startSilenceKeepAlive];
-    }
-    NSLog(@"Background keep-alive: %@", keepAlive > 0
+    // 兜底: 正常情况下会话建立时(前台)就已经在播了, 这里只是防止漏掉。
+    // 注意进后台之后才激活音频会话通常会失败, 所以指望不上这一次。
+    [self startSilenceKeepAliveIfNeeded];
+
+    NSLog(@"Background keep-alive: %@, silence playing: %@",
+          keepAlive > 0 ? [NSString stringWithFormat:@"%.0f 分钟", keepAlive / 60.0] : @"不限制",
+          sScrcpySilencePlayer.isPlaying ? @"YES" : @"NO");
+    NSLog(@"Background keep-alive limit: %@", keepAlive > 0
           ? [NSString stringWithFormat:@"%.0f 分钟", keepAlive / 60.0] : @"不限制");
 
     // For more time execute in background
@@ -757,8 +780,9 @@ static NSString *ScrcpySilenceFilePath(void) {
 - (void)onApplicationDidBecomeActive:(NSNotification *)notification {
     NSLog(@"Application did become active, reset video");
 
-    // 回到前台就不用再耗电撑着了
-    [self stopSilenceKeepAlive];
+    // 这里【不能】停静音播放: 音频会话一旦停掉, 下次再进后台就来不及重新激活了
+    // (iOS 不允许已经在后台的 App 激活音频会话)。整个会话期间一直播着,
+    // 直到 stopScrcpy 才停。音频数据全是 0, 听不见, 也不影响别的 App 放歌。
 
     // Stop background timer first
     [self stopBackgroundTimer];
