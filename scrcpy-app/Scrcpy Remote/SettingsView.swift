@@ -23,6 +23,8 @@ enum BackgroundActiveDuration: String, Codable, CaseIterable, Identifiable {
     case tenMinutes = "10 minutes"
     case thirtyMinutes = "30 minutes"
     case oneHour = "1 hour"
+    case twoHours = "2 hours"
+    case fourHours = "4 hours"
     case always = "Always"
 
     var id: String { self.rawValue }
@@ -34,6 +36,8 @@ enum BackgroundActiveDuration: String, Codable, CaseIterable, Identifiable {
         case .tenMinutes: return 600
         case .thirtyMinutes: return 1800
         case .oneHour: return 3600
+        case .twoHours: return 7200
+        case .fourHours: return 14400
         case .always: return nil
         }
     }
@@ -275,10 +279,17 @@ struct SettingsView: View {
 
                     Picker("Background Active", selection: $appSettings.backgroundActiveDuration) {
                         ForEach(BackgroundActiveDuration.allCases) {
-                            Text($0.rawValue).tag($0)
+                            // 注意: Text(String) 这个重载不做本地化, 必须显式包成
+                            // LocalizedStringKey 才会查 .strings, 否则档位永远是英文
+                            Text(LocalizedStringKey($0.rawValue)).tag($0)
                         }
                     }
-                    
+
+                    Text("App switched to the background keeps the session alive for this long, then disconnects automatically. Choose Always to never disconnect (uses more battery).")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+
                     if #available(iOS 16.1, *) {
                         Toggle("Live Activity in Dynamic Island", isOn: $appSettings.liveActivityEnabled)
                         

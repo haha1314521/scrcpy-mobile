@@ -9,8 +9,10 @@
 #import "ScrcpyMenuView+Private.h"
 #import "ScrcpyMenuView+FileTransfer.h"
 #import "ScrcpyActionsBridge.h"
+#import "ADBClient.h"
 #import "Scrcpy_Remote-Swift.h"
 #import <objc/runtime.h>
+#import <Photos/Photos.h>
 
 @implementation ScrcpyMenuView (Actions)
 
@@ -275,6 +277,11 @@
     return self.currentDeviceType == ScrcpyDeviceTypeADB;
 }
 
+// 截取当前设备屏幕(走 adb screencap,原始像素,保存到相册)
+- (BOOL)shouldShowScreenshotOption {
+    return self.currentDeviceType == ScrcpyDeviceTypeADB;
+}
+
 - (BOOL)shouldShowDumpUILayoutsOption {
     return self.currentDeviceType == ScrcpyDeviceTypeADB;
 }
@@ -282,6 +289,7 @@
 - (NSInteger)embeddedActionsCount {
     NSInteger count = 0;
     if ([self shouldShowSendFilesOption]) count++;
+    if ([self shouldShowScreenshotOption]) count++;
     if ([self shouldShowDumpUILayoutsOption]) count++;
     return count;
 }
@@ -327,6 +335,23 @@
             cell.textLabel.textColor = [UIColor whiteColor];
             cell.textLabel.font = [UIFont systemFontOfSize:16.0 weight:UIFontWeightMedium];
             cell.detailTextLabel.text = NSLocalizedString(@"Push files or photos to device", nil);
+            cell.detailTextLabel.textColor = [[UIColor whiteColor] colorWithAlphaComponent:0.7];
+            cell.detailTextLabel.font = [UIFont systemFontOfSize:12.0];
+            return cell;
+        }
+        embeddedRowIndex++;
+    }
+
+    // 截图行(紧跟在"发送文件或照片"下面)
+    if ([self shouldShowScreenshotOption]) {
+        if (indexPath.row == embeddedRowIndex) {
+            UIImage *shotIcon = [[UIImage systemImageNamed:@"camera.fill" withConfiguration:largeConfig]
+                                 imageWithTintColor:[UIColor systemGreenColor] renderingMode:UIImageRenderingModeAlwaysOriginal];
+            cell.imageView.image = [self imageWithIcon:shotIcon inSize:iconContainerSize];
+            cell.textLabel.text = NSLocalizedString(@"Capture Screenshot", nil);
+            cell.textLabel.textColor = [UIColor whiteColor];
+            cell.textLabel.font = [UIFont systemFontOfSize:16.0 weight:UIFontWeightMedium];
+            cell.detailTextLabel.text = NSLocalizedString(@"Save device screen to Photos", nil);
             cell.detailTextLabel.textColor = [[UIColor whiteColor] colorWithAlphaComponent:0.7];
             cell.detailTextLabel.font = [UIFont systemFontOfSize:12.0];
             return cell;
@@ -412,6 +437,23 @@
             NSLog(@"📤 [ScrcpyMenuView] Send Files or Photos selected");
             [self hideActionsMenu];
             [self showSendFilesOrPhotosActionSheet];
+            return;
+        }
+        embeddedRowIndex++;
+    }
+
+    // 截图
+    if ([self shouldShowScreenshotOption]) {
+        if (indexPath.row == embeddedRowIndex) {
+            NSLog(@"📷 [ScrcpyMenuView] Capture Screenshot selected");
+            [self hideActionsMenu];
+            if (self.isExpanded) {
+                [self toggleMenuExpansion];
+            }
+            // 等菜单收起动画结束再截, 否则会把菜单也拍进去
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.45 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+                [self captureDeviceScreenshot];
+            });
             return;
         }
         embeddedRowIndex++;
@@ -519,6 +561,145 @@
 
     // Present the SwiftUI DumpUIView (it will get the device info from SessionConnectionManager)
     [ScrcpyDumpUIPresenter show];
+}
+
+#pragma mark - 截取设备屏幕
+
+// 走 adb screencap 而不是截 iPhone 这边的画面:
+// 拿到的是安卓设备的原始分辨率原图(比如 1080x1920), 没有缩放、没有黑边,
+// 用来量控件坐标或存档都准确。
+- (void)captureDeviceScreenshot {
+    NSString *remotePath = @"/sdcard/scrcpy_remote_capture.png";
+    NSString *localPath = [NSTemporaryDirectory() stringByAppendingPathComponent:@"scrcpy_capture.png"];
+    [[NSFileManager defaultManager] removeItemAtPath:localPath error:nil];
+
+    [self showCaptureHUD:NSLocalizedString(@"Capturing screen...", nil) autoHide:NO];
+
+    __weak typeof(self) weakSelf = self;
+
+    // 1) 在设备上截图存成文件。
+    //    不用 exec-out 直接读流是有原因的: 老 adb 会对 shell 输出做 LF->CRLF 转换,
+    //    直接拿流会把 PNG 二进制弄坏, 存文件再 pull 最稳。
+    [[ADBClient shared] executeADBCommandAsync:@[@"shell", @"screencap", @"-p", remotePath]
+                                      callback:^(NSString * _Nullable output, int returnCode) {
+        __strong typeof(weakSelf) self = weakSelf;
+        if (!self) return;
+
+        if (returnCode != 0) {
+            NSLog(@"📷 screencap failed (%d): %@", returnCode, output);
+            [self showCaptureHUD:NSLocalizedString(@"Screenshot failed", nil) autoHide:YES];
+            return;
+        }
+
+        // 2) 拉到本机沙盒
+        [[ADBClient shared] executeADBCommandAsync:@[@"pull", remotePath, localPath]
+                                          callback:^(NSString * _Nullable out2, int code2) {
+            __strong typeof(weakSelf) self = weakSelf;
+            if (!self) return;
+
+            // 3) 顺手清掉设备上的临时文件, 失败也无所谓
+            [[ADBClient shared] executeADBCommandAsync:@[@"shell", @"rm", @"-f", remotePath]
+                                              callback:^(NSString * _Nullable o, int c) {}];
+
+            NSData *data = [NSData dataWithContentsOfFile:localPath];
+            if (code2 != 0 || data.length == 0) {
+                NSLog(@"📷 pull failed (%d), bytes=%lu: %@", code2, (unsigned long)data.length, out2);
+                [self showCaptureHUD:NSLocalizedString(@"Screenshot failed", nil) autoHide:YES];
+                return;
+            }
+
+            [self saveCapturedScreenshotAtPath:localPath];
+        }];
+    }];
+}
+
+- (void)saveCapturedScreenshotAtPath:(NSString *)localPath {
+    UIImage *image = [UIImage imageWithContentsOfFile:localPath];
+    NSString *sizeText = image ? [NSString stringWithFormat:@"%.0f × %.0f", image.size.width, image.size.height] : @"";
+
+    __weak typeof(self) weakSelf = self;
+    [PHPhotoLibrary requestAuthorizationForAccessLevel:PHAccessLevelAddOnly
+                                               handler:^(PHAuthorizationStatus status) {
+        __strong typeof(weakSelf) self = weakSelf;
+        if (!self) return;
+
+        if (status != PHAuthorizationStatusAuthorized && status != PHAuthorizationStatusLimited) {
+            [self showCaptureHUD:NSLocalizedString(@"No permission to save to Photos", nil) autoHide:YES];
+            return;
+        }
+
+        // 用 addResourceWithType:fileURL: 直接写入原始 PNG 文件,
+        // 不经过 UIImage 重新编码, 像素和文件内容都是原样。
+        [[PHPhotoLibrary sharedPhotoLibrary] performChanges:^{
+            PHAssetCreationRequest *request = [PHAssetCreationRequest creationRequestForAsset];
+            [request addResourceWithType:PHAssetResourceTypePhoto
+                                 fileURL:[NSURL fileURLWithPath:localPath]
+                                 options:nil];
+        } completionHandler:^(BOOL success, NSError * _Nullable error) {
+            __strong typeof(weakSelf) self = weakSelf;
+            if (!self) return;
+
+            if (success) {
+                NSString *msg = sizeText.length > 0
+                    ? [NSString stringWithFormat:@"%@  (%@)", NSLocalizedString(@"Saved to Photos", nil), sizeText]
+                    : NSLocalizedString(@"Saved to Photos", nil);
+                [self showCaptureHUD:msg autoHide:YES];
+            } else {
+                NSLog(@"📷 save to photos failed: %@", error);
+                [self showCaptureHUD:NSLocalizedString(@"Failed to save to Photos", nil) autoHide:YES];
+            }
+        }];
+    }];
+}
+
+#define kCaptureHUDTag 908601
+
+- (void)showCaptureHUD:(NSString *)text autoHide:(BOOL)autoHide {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        UIView *host = self.window ?: self.superview;
+        if (!host) return;
+
+        UIView *old = [host viewWithTag:kCaptureHUDTag];
+        [old removeFromSuperview];
+
+        UILabel *hud = [[UILabel alloc] init];
+        hud.tag = kCaptureHUDTag;
+        hud.text = text;
+        hud.textColor = [UIColor whiteColor];
+        hud.font = [UIFont systemFontOfSize:14.0 weight:UIFontWeightMedium];
+        hud.textAlignment = NSTextAlignmentCenter;
+        hud.numberOfLines = 0;
+        hud.backgroundColor = [[UIColor blackColor] colorWithAlphaComponent:0.8];
+        hud.layer.cornerRadius = 10.0;
+        hud.layer.masksToBounds = YES;
+        hud.alpha = 0.0;
+        hud.translatesAutoresizingMaskIntoConstraints = NO;
+        [host addSubview:hud];
+
+        [NSLayoutConstraint activateConstraints:@[
+            [hud.centerXAnchor constraintEqualToAnchor:host.centerXAnchor],
+            [hud.centerYAnchor constraintEqualToAnchor:host.centerYAnchor],
+            [hud.widthAnchor constraintLessThanOrEqualToAnchor:host.widthAnchor multiplier:0.8],
+            [hud.heightAnchor constraintGreaterThanOrEqualToConstant:44.0],
+        ]];
+        // 左右留白
+        hud.preferredMaxLayoutWidth = host.bounds.size.width * 0.8 - 32;
+        [hud setContentCompressionResistancePriority:UILayoutPriorityRequired forAxis:UILayoutConstraintAxisHorizontal];
+
+        [UIView animateWithDuration:0.15 animations:^{
+            hud.alpha = 1.0;
+        }];
+
+        if (autoHide) {
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+                [UIView animateWithDuration:0.25 animations:^{
+                    hud.alpha = 0.0;
+                } completion:^(BOOL finished) {
+                    [hud removeFromSuperview];
+                }];
+            });
+        }
+    });
 }
 
 @end

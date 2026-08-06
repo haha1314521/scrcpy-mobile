@@ -577,8 +577,44 @@ void ScrcpyTryResetVideo(void) {
     [self.sdlDelegate.window makeKeyWindow];
 }
 
+// 退到后台后会话最多保持多久(秒)。0 = 不主动断开, 一直保持到系统回收进程。
+//
+// ★ 读的是设置页「后台保持时长」那一项(settings.background_active_duration)。
+//   原版这里写死 5 分钟, 完全没读设置 —— 所以设置里选了 1 小时也照样 5 分钟就断,
+//   Swift 侧的 SessionConnectionManager 读了设置, 两边不一致, 短的那个说了算。
+//   这里改成读同一个 key, 设置才真正生效。
+NSTimeInterval ScrcpyBackgroundKeepAliveSeconds(void) {
+    NSString *value = [[NSUserDefaults standardUserDefaults] stringForKey:@"settings.background_active_duration"];
+
+    // 与 BackgroundActiveDuration 的 rawValue 一一对应
+    static NSDictionary<NSString *, NSNumber *> *map = nil;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        map = @{
+            @"1 minute":    @(60),
+            @"5 minutes":   @(300),
+            @"10 minutes":  @(600),
+            @"30 minutes":  @(1800),
+            @"1 hour":      @(3600),
+            @"2 hours":     @(7200),
+            @"4 hours":     @(14400),
+            @"Always":      @(0),      // 0 = 不限制
+        };
+    });
+
+    NSNumber *seconds = value ? map[value] : nil;
+    if (seconds == nil) {
+        // 没设置过时跟随设置页的默认值(5 分钟)
+        return 300.0;
+    }
+    return seconds.doubleValue;
+}
+
 - (void)onApplicationDidEnterBackground:(NSNotification *)notification {
     NSTimeInterval beginBackgroundTime = [NSDate date].timeIntervalSince1970;
+    NSTimeInterval keepAlive = ScrcpyBackgroundKeepAliveSeconds();
+    NSLog(@"Background keep-alive: %@", keepAlive > 0
+          ? [NSString stringWithFormat:@"%.0f 分钟", keepAlive / 60.0] : @"不限制");
 
     // For more time execute in background
     static void (^beginTaskHandler)(void) = nil;
@@ -586,8 +622,10 @@ void ScrcpyTryResetVideo(void) {
         __block UIBackgroundTaskIdentifier taskIdentifier = [UIApplication.sharedApplication beginBackgroundTaskWithName:@"com.mobile.scrcpy-ios.task" expirationHandler:^{
             [UIApplication.sharedApplication endBackgroundTask:taskIdentifier];
             NSLog(@"Background task expired: %lu", (unsigned long)taskIdentifier);
-            
-            if (NSDate.date.timeIntervalSince1970 - beginBackgroundTime < 60 * 5) {
+
+            // keepAlive == 0 表示不限制, 一直续期
+            NSTimeInterval limit = ScrcpyBackgroundKeepAliveSeconds();
+            if (limit <= 0 || NSDate.date.timeIntervalSince1970 - beginBackgroundTime < limit) {
                 beginTaskHandler();
                 NSLog(@"Background task expired, but still in background, restart task");
                 return;
@@ -637,15 +675,21 @@ void ScrcpyTryResetVideo(void) {
 }
 
 - (void)handleBackgroundTimeout {
-    // Check if still in background and alreay 5 minutes passed
+    // 后台超过设定时长就断开会话(设置页可改, 0 = 不限制)
     NSTimeInterval currentTime = [NSDate date].timeIntervalSince1970;
-    NSLog(@"Background timer fired, passed %f seconds, checking status...", currentTime - self.lastBackgroundCheckTime);
-    
+    NSTimeInterval keepAlive = ScrcpyBackgroundKeepAliveSeconds();
+    NSLog(@"Background timer fired, passed %f seconds, limit %.0f...", currentTime - self.lastBackgroundCheckTime, keepAlive);
+
+    if (keepAlive <= 0) {
+        // 不限制: 只要还在后台就一直保持, 直到系统自己回收进程
+        return;
+    }
+
     if (UIApplication.sharedApplication.applicationState == UIApplicationStateBackground &&
-        currentTime - self.lastBackgroundCheckTime >= 60 * 5) {
+        currentTime - self.lastBackgroundCheckTime >= keepAlive) {
         NSLog(@"App is still in background, stopping scrcpy");
         [self stopScrcpy];
-        
+
         // Stop timer
         [self stopBackgroundTimer];
     } else {

@@ -18,6 +18,8 @@
 			</array>
 		</dict>
 	</array>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>保存远程设备的屏幕截图到相册。</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>processing</string>
