@@ -25,9 +25,17 @@ enum BackgroundActiveDuration: String, Codable, CaseIterable, Identifiable {
     case oneHour = "1 hour"
     case twoHours = "2 hours"
     case fourHours = "4 hours"
+    case custom = "Custom"
     case always = "Always"
 
     var id: String { self.rawValue }
+
+    /// 自定义分钟数(仅 .custom 用),限制在 1 ~ 1440 分钟
+    static var customMinutes: Int {
+        let v = UserDefaults.standard.integer(forKey: "settings.background_active_custom_minutes")
+        if v <= 0 { return 30 }
+        return min(v, 1440)
+    }
 
     var seconds: TimeInterval? {
         switch self {
@@ -38,6 +46,7 @@ enum BackgroundActiveDuration: String, Codable, CaseIterable, Identifiable {
         case .oneHour: return 3600
         case .twoHours: return 7200
         case .fourHours: return 14400
+        case .custom: return TimeInterval(Self.customMinutes * 60)
         case .always: return nil
         }
     }
@@ -54,6 +63,10 @@ class AppSettings: ObservableObject {
     
     @AppStorage("settings.background_active_duration")
     var backgroundActiveDuration: BackgroundActiveDuration = .fiveMinutes
+
+    /// 「后台保持连接」选自定义时的分钟数
+    @AppStorage("settings.background_active_custom_minutes")
+    var backgroundActiveCustomMinutes: Int = 30
     
     // Logging related settings
     @AppStorage("settings.logging.enabled")
@@ -277,17 +290,21 @@ struct SettingsView: View {
                         Text("Appearance")
                     }
 
-                    Picker("Background Active", selection: $appSettings.backgroundActiveDuration) {
-                        ForEach(BackgroundActiveDuration.allCases) {
-                            // 注意: Text(String) 这个重载不做本地化, 必须显式包成
-                            // LocalizedStringKey 才会查 .strings, 否则档位永远是英文
-                            Text(LocalizedStringKey($0.rawValue)).tag($0)
+                    NavigationLink(destination: BackgroundActiveSettingsView()) {
+                        HStack {
+                            Text("Background Active")
+                            Spacer()
+                            if appSettings.backgroundActiveDuration == .custom {
+                                Text("\(appSettings.backgroundActiveCustomMinutes) min")
+                                    .foregroundColor(.secondary)
+                            } else {
+                                // 注意: Text(String) 这个重载不做本地化, 必须显式包成
+                                // LocalizedStringKey 才会查 .strings, 否则永远显示英文
+                                Text(LocalizedStringKey(appSettings.backgroundActiveDuration.rawValue))
+                                    .foregroundColor(.secondary)
+                            }
                         }
                     }
-
-                    Text("App switched to the background keeps the session alive for this long, then disconnects automatically. Choose Always to never disconnect (uses more battery).")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
 
 
                     if #available(iOS 16.1, *) {
@@ -451,6 +468,59 @@ struct AppearanceSettingsView: View {
             }
         }
         .navigationBarTitle("Appearance", displayMode: .inline)
+    }
+}
+
+/// 后台保持时长设置页(样式与"外观"一致)
+struct BackgroundActiveSettingsView: View {
+    @EnvironmentObject var appSettings: AppSettings
+
+    var body: some View {
+        List {
+            Section(footer:
+                Text("After the app is switched to the background, the session stays connected for this long and then disconnects automatically. Choose Always to never disconnect on your own — the session then lives until iOS reclaims the app, which uses more battery.")
+            ) {
+                ForEach(BackgroundActiveDuration.allCases) { item in
+                    Button(action: {
+                        appSettings.backgroundActiveDuration = item
+                    }) {
+                        HStack {
+                            // Text(String) 不本地化, 必须包 LocalizedStringKey
+                            Text(LocalizedStringKey(item.rawValue))
+                            if item == appSettings.backgroundActiveDuration {
+                                Spacer()
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                    }
+                    .foregroundColor(.primary)
+                }
+            }
+
+            // 选了"自定义"才出现, 直接填分钟数
+            if appSettings.backgroundActiveDuration == .custom {
+                Section(footer: Text("1 to 1440 minutes (24 hours).")) {
+                    HStack {
+                        Text("Minutes")
+                        Spacer()
+                        TextField("30", value: $appSettings.backgroundActiveCustomMinutes,
+                                  formatter: NumberFormatter())
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.trailing)
+                            .frame(width: 90)
+                    }
+                    Stepper(
+                        value: $appSettings.backgroundActiveCustomMinutes,
+                        in: 1...1440,
+                        step: 5
+                    ) {
+                        Text("\(appSettings.backgroundActiveCustomMinutes) min")
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+        }
+        .navigationBarTitle("Background Active", displayMode: .inline)
     }
 }
 

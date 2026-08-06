@@ -602,6 +602,14 @@ NSTimeInterval ScrcpyBackgroundKeepAliveSeconds(void) {
         };
     });
 
+    // 自定义分钟数
+    if ([value isEqualToString:@"Custom"]) {
+        NSInteger minutes = [[NSUserDefaults standardUserDefaults] integerForKey:@"settings.background_active_custom_minutes"];
+        if (minutes <= 0) minutes = 30;
+        if (minutes > 1440) minutes = 1440;
+        return (NSTimeInterval)minutes * 60.0;
+    }
+
     NSNumber *seconds = value ? map[value] : nil;
     if (seconds == nil) {
         // 没设置过时跟随设置页的默认值(5 分钟)
