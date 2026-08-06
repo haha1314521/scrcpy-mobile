@@ -129,9 +129,12 @@ typealias ActionConfirmationCallback = (ScrcpyAction, @escaping () -> Void) -> V
     /// 后台断开连接计时器
     private var backgroundDisconnectTimer: Timer?
 
-    /// 进入后台的时刻 + 当时的会话,用于回到前台时判断要不要自动重连
-    private var backgroundEnterTime: Date?
-    private var sessionForAutoReconnect: ScrcpySessionModel?
+    /// 自动重连的现场记录。
+    ///
+    /// ★ 必须落磁盘, 不能只放内存: iOS 经常在后台直接回收整个进程(实测切后台 8 分钟就被杀),
+    ///   下次是冷启动, 内存里的东西全没了 —— 这也正是最常见的"进去就回到列表页"的情形。
+    private let kAutoReconnectSessionId = "autoreconnect.session_id"
+    private let kAutoReconnectAt = "autoreconnect.background_at"
     
     /// Live Activity 管理器
     private lazy var liveActivityManager: Any? = {
@@ -297,14 +300,10 @@ typealias ActionConfirmationCallback = (ScrcpyAction, @escaping () -> Void) -> V
     @objc private func handleApplicationDidEnterBackground() {
         print("📱 [SessionConnectionManager] Application did enter background")
 
-        // 记下进后台的时刻和当时的会话，供回到前台时判断要不要自动重连
+        // 记下进后台的时刻和当时的会话(写磁盘, 进程被杀也不丢)
         if connectionStatus.isActive, let session = currentSession {
-            backgroundEnterTime = Date()
-            sessionForAutoReconnect = session
+            saveAutoReconnectState(session)
             print("🔁 [AutoReconnect] Remembered session \(session.sessionName) for possible reconnect")
-        } else {
-            backgroundEnterTime = nil
-            sessionForAutoReconnect = nil
         }
 
         // 如果当前有活跃连接，启动 Live Activity
@@ -340,30 +339,64 @@ typealias ActionConfirmationCallback = (ScrcpyAction, @escaping () -> Void) -> V
     // 这里改成: 只要还在设置的"后台保持连接"时长之内, 就自动用同一个会话重连,
     // 用户看到的是几秒重连, 而不是掉回列表页。超过设定时长则不管 —— 那本来就该断了。
 
-    private func attemptAutoReconnectIfNeeded() {
-        guard let enterTime = backgroundEnterTime,
-              let session = sessionForAutoReconnect else {
+    private func saveAutoReconnectState(_ session: ScrcpySessionModel) {
+        UserDefaults.standard.set(session.id.uuidString, forKey: kAutoReconnectSessionId)
+        UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: kAutoReconnectAt)
+    }
+
+    /// 用户主动断开时必须清掉, 否则下次打开 App 会莫名其妙自动连上
+    func clearAutoReconnectState() {
+        UserDefaults.standard.removeObject(forKey: kAutoReconnectSessionId)
+        UserDefaults.standard.removeObject(forKey: kAutoReconnectAt)
+    }
+
+    /// App 冷启动时调用(进程在后台被杀的情况), 由 MainContentView 在会话列表加载完之后触发
+    @objc func checkAutoReconnectOnLaunch() {
+        attemptAutoReconnectIfNeeded(fromColdLaunch: true)
+    }
+
+    private func attemptAutoReconnectIfNeeded(fromColdLaunch: Bool = false) {
+        guard let idString = UserDefaults.standard.string(forKey: kAutoReconnectSessionId),
+              let sessionId = UUID(uuidString: idString) else {
             return
         }
-        backgroundEnterTime = nil
-        sessionForAutoReconnect = nil
+        let savedAt = UserDefaults.standard.double(forKey: kAutoReconnectAt)
+        guard savedAt > 0 else { return }
+
+        let elapsed = Date().timeIntervalSince1970 - savedAt
 
         // 超过设定时长就不重连了(选"始终"时 seconds 为 nil, 永远算没超时)
         let duration = AppSettings().backgroundActiveDuration
-        if let limit = duration.seconds {
-            let elapsed = Date().timeIntervalSince(enterTime)
-            if elapsed > limit {
-                print("🔁 [AutoReconnect] Background \(Int(elapsed))s exceeded limit \(Int(limit))s, skip")
-                return
-            }
+        if let limit = duration.seconds, elapsed > limit {
+            print("🔁 [AutoReconnect] Background \(Int(elapsed))s exceeded limit \(Int(limit))s, skip")
+            clearAutoReconnectState()
+            return
         }
 
-        // 目前只处理 ADB 会话
-        guard session.deviceType == .adb else { return }
+        print("🔁 [AutoReconnect] Pending session \(sessionId), \(Int(elapsed))s ago, coldLaunch=\(fromColdLaunch)")
 
-        // 等 App 完全恢复再探测, 否则刚回前台时 adb 状态还没稳定
+        // 冷启动 = 进程被杀过, 会话必然没了, 直接重连不用探测
+        if fromColdLaunch || !connectionStatus.isActive {
+            requestReconnect(sessionId)
+            return
+        }
+
+        // 进程还活着: 会话可能还好好的, 先探一下设备在不在线
+        guard let session = currentSession, session.deviceType == .adb else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in
             self?.probeDeviceAndReconnect(session)
+        }
+    }
+
+    private func requestReconnect(_ sessionId: UUID) {
+        clearAutoReconnectState()
+        DispatchQueue.main.async {
+            print("🔁 [AutoReconnect] Requesting reconnect for \(sessionId)")
+            NotificationCenter.default.post(
+                name: NSNotification.Name("ScrcpyAutoReconnectRequest"),
+                object: nil,
+                userInfo: ["sessionId": sessionId]
+            )
         }
     }
 
@@ -376,21 +409,18 @@ typealias ActionConfirmationCallback = (ScrcpyAction, @escaping () -> Void) -> V
             let alive = (code == 0) && state.contains("device")
             print("🔁 [AutoReconnect] get-state -> code=\(code), state=\(state), alive=\(alive)")
 
+            guard let self = self else { return }
             guard !alive else {
                 print("🔁 [AutoReconnect] Device still online, nothing to do")
+                self.clearAutoReconnectState()
                 return
             }
 
             DispatchQueue.main.async {
-                guard let self = self else { return }
                 // 会话确实断了 —— 让 UI 走一遍正常的连接流程(会显示连接中的界面)
-                print("🔁 [AutoReconnect] Device offline, requesting reconnect for \(session.sessionName)")
+                print("🔁 [AutoReconnect] Device offline, reconnecting \(session.sessionName)")
                 self.disconnectCurrent()
-                NotificationCenter.default.post(
-                    name: NSNotification.Name("ScrcpyAutoReconnectRequest"),
-                    object: nil,
-                    userInfo: ["sessionId": session.id]
-                )
+                self.requestReconnect(session.id)
             }
         }
     }
@@ -862,6 +892,9 @@ typealias ActionConfirmationCallback = (ScrcpyAction, @escaping () -> Void) -> V
         // 会输出 ERROR 日志。那不是故障, 不应该弹错误框吓人 —— 这里打标记, 由
         // showErrorAlert 判断后跳过。
         userDisconnectAt = Date()
+
+        // 会话已经结束, 清掉自动重连的现场, 否则下次打开 App 会自己连上去
+        clearAutoReconnectState()
 
         print("🔌 [SessionConnectionManager] Disconnecting current connection")
         

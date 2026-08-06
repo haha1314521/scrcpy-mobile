@@ -367,6 +367,8 @@ struct MainContentView: View {
                         reloadSessions()
                     }
                     checkForMigration()
+                    // 冷启动: 进程可能是在后台被系统杀掉的, 检查有没有待恢复的会话
+                    connectionManager.checkAutoReconnectOnLaunch()
                 }
                 .onChange(of: connectionManager.isConnecting) { handleConnectingChange($0) }
                 .onChange(of: connectionManager.connectionStatus) { handleStatusChange($0) }
@@ -445,6 +447,8 @@ struct MainContentView: View {
                         reloadSessions()
                     }
                     checkForMigration()
+                    // 冷启动: 进程可能是在后台被系统杀掉的, 检查有没有待恢复的会话
+                    connectionManager.checkAutoReconnectOnLaunch()
                 }
                 .onChange(of: connectionManager.isConnecting) { handleConnectingChange($0) }
                 .onChange(of: connectionManager.connectionStatus) { handleStatusChange($0) }
