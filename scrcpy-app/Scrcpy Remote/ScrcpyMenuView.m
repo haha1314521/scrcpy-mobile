@@ -611,15 +611,18 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
 
     CGRect screenBounds = window.bounds;
 
+    // 网格尺寸: 和 updateButtonLayout 里保持同一套算法
     NSInteger visibleButtonCount = [self visibleButtonCount];
-    CGFloat totalButtonsWidth = visibleButtonCount * kButtonWidth + (visibleButtonCount - 1) * kButtonSpacing;
-    CGFloat menuWidth = totalButtonsWidth + kMenuHorizontalPadding * 2;
+    NSInteger columns = MIN(visibleButtonCount, kMenuColumns);
+    NSInteger rows = (visibleButtonCount + kMenuColumns - 1) / kMenuColumns;
+    if (columns < 1) columns = 1;
+    if (rows < 1) rows = 1;
 
-    CGFloat maxMenuWidth = 400.0f;
+    CGFloat menuWidth = columns * kButtonWidth + (columns - 1) * kButtonSpacing + kMenuHorizontalPadding * 2;
+    CGFloat menuHeight = rows * kButtonHeight + (rows - 1) * kButtonSpacing + kMenuVerticalPadding * 2;
+
     CGFloat availableWidth = screenBounds.size.width - (kMenuHorizontalPadding * 2);
-    menuWidth = MIN(MIN(maxMenuWidth, availableWidth), menuWidth);
-
-    CGFloat menuHeight = self.menuView.frame.size.height;
+    menuWidth = MIN(availableWidth, menuWidth);
 
     CGRect capsuleFrameInWindow = [self.capsuleView convertRect:self.capsuleView.bounds toView:window];
 
@@ -1041,8 +1044,8 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
     [self.menuView setNeedsLayout];
     [self.menuView layoutIfNeeded];
 
-    LOG_POSITION(@"Updated button layout: %ld visible buttons, menu width: %.1f, total buttons width: %.1f",
-                 (long)visibleButtons.count, idealMenuWidth, totalButtonsWidth);
+    LOG_POSITION(@"Updated button layout: %ld visible buttons, menu %.1f x %.1f",
+                 (long)visibleButtons.count, idealMenuWidth, idealMenuHeight);
 
     self.isUpdatingButtonLayout = NO;
 }
