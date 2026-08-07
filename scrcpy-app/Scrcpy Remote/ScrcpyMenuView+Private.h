@@ -35,6 +35,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, strong) UIButton *clipboardSyncButton;
 @property (nonatomic, strong) UIButton *rebootButton;
 @property (nonatomic, strong) UIButton *dumpUIButton;
+@property (nonatomic, strong) UIButton *cleanupButton;
 @property (nonatomic, strong) UIButton *disconnectButton;
 
 // State

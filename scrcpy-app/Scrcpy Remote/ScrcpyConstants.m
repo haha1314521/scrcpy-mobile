@@ -20,6 +20,8 @@ NSString * const kIconDisconnectButton = @"xmark.circle";
 NSString * const kIconRebootButton = @"power";
 // 查看界面控件树; 用 SF Symbols 1.0 就有的图标, 避免 iOS 14 上空白
 NSString * const kIconDumpUIButton = @"square.grid.3x3";
+// 清理后台; trash 属于 SF Symbols 1.0, iOS 13 就有, 不会在 iOS 14 上空白
+NSString * const kIconCleanupButton = @"trash";
 NSString * const kIconClipboardSyncButton = @"square.and.arrow.up.on.square";
 
 // UserDefaults Keys

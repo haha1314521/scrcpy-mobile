@@ -433,6 +433,10 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
     self.dumpUIButton = [self createButtonWithIcon:kIconDumpUIButton position:tempButtonFrame];
     [self.menuView addSubview:self.dumpUIButton];
 
+    // 清理后台(adb shell am kill-all)
+    self.cleanupButton = [self createButtonWithIcon:kIconCleanupButton position:tempButtonFrame];
+    [self.menuView addSubview:self.cleanupButton];
+
     // Disconnect button
     self.disconnectButton = [self createButtonWithIcon:kIconDisconnectButton position:tempButtonFrame];
     [self.menuView addSubview:self.disconnectButton];
@@ -645,15 +649,10 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
     CGFloat screenCenterX = screenBounds.size.width / 2.0f;
     CGFloat capsuleCenterX = CGRectGetMidX(capsuleFrameInWindow);
 
-    if (menuWidth >= maxMenuWidth) {
-        if (capsuleCenterX < screenCenterX) {
-            menuX = capsuleFrameInWindow.origin.x;
-        } else {
-            menuX = capsuleFrameInWindow.origin.x + capsuleFrameInWindow.size.width - menuWidth;
-        }
-    } else {
-        menuX = (screenBounds.size.width - menuWidth) / 2.0f;
-    }
+    // 面板以悬浮球为中心展开 —— 系统辅助触控就是在球附近弹出的, 手指不用跑远。
+    // (原来的逻辑是: 面板窄就跑到屏幕正中, 那是给横排长条菜单设计的, 网格面板不适用)
+    menuX = capsuleCenterX - menuWidth / 2.0f;
+    (void)screenCenterX;
 
     menuX = MAX(kMenuHorizontalPadding,
                 MIN(screenBounds.size.width - menuWidth - kMenuHorizontalPadding, menuX));
@@ -725,6 +724,12 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
 - (void)rebootButtonTapped:(UIButton *)sender {
     if ([self.delegate respondsToSelector:@selector(didTapRebootButton)]) {
         [self.delegate didTapRebootButton];
+    }
+}
+
+- (void)cleanupButtonTapped:(UIButton *)sender {
+    if ([self.delegate respondsToSelector:@selector(didTapCleanupButton)]) {
+        [self.delegate didTapCleanupButton];
     }
 }
 
@@ -916,6 +921,7 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
         self.clipboardSyncButton.hidden = YES;
         self.rebootButton.hidden = NO;
         self.dumpUIButton.hidden = NO;
+        self.cleanupButton.hidden = NO;
         self.disconnectButton.hidden = NO;
 
         [self removePinchGesture];
@@ -932,6 +938,7 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
         self.clipboardSyncButton.hidden = NO;
         self.rebootButton.hidden = YES;
         self.dumpUIButton.hidden = YES;
+        self.cleanupButton.hidden = YES;
         self.disconnectButton.hidden = NO;
 
         LOG_POSITION(@"🐆 [ScrcpyMenuView] Scheduling VNC gestures setup with 0.3s delay");
@@ -961,6 +968,7 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
     if (!self.clipboardSyncButton.hidden) [visibleButtons addObject:self.clipboardSyncButton];
     if (!self.rebootButton.hidden) [visibleButtons addObject:self.rebootButton];
     if (!self.dumpUIButton.hidden) [visibleButtons addObject:self.dumpUIButton];
+    if (!self.cleanupButton.hidden) [visibleButtons addObject:self.cleanupButton];
     if (!self.disconnectButton.hidden) [visibleButtons addObject:self.disconnectButton];
 
     return [visibleButtons copy];
@@ -1179,6 +1187,8 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
         [self rebootButtonTapped:nil];
     } else if ([buttonType isEqualToString:kIconDumpUIButton]) {
         [self dumpUIButtonTapped:nil];
+    } else if ([buttonType isEqualToString:kIconCleanupButton]) {
+        [self cleanupButtonTapped:nil];
     } else if ([buttonType isEqualToString:kIconDisconnectButton]) {
         [self disconnectButtonTapped:nil];
     }

@@ -555,6 +555,37 @@ static char orientationLockEnabledKey;
     });
 }
 
+- (void)didTapCleanupButton {
+    // 清理后台: adb shell am kill-all
+    //
+    // am kill-all 只会杀可安全结束的后台进程, 不碰前台和系统 persistent 进程。
+    // 不过挂机跑的任务(比如在后台的支付宝)也算后台进程, 会被一并结束,
+    // 所以这里加确认框, 避免误触把正在跑的任务杀掉。
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:NSLocalizedString(@"Clean Background", @"Cleanup title")
+                                                                  message:NSLocalizedString(@"Kill background apps on the remote device? Tasks running in the background will be stopped.", @"Cleanup confirm message")
+                                                           preferredStyle:UIAlertControllerStyleAlert];
+
+    UIAlertAction *cleanAction = [UIAlertAction actionWithTitle:NSLocalizedString(@"Clean", @"Cleanup button")
+                                                          style:UIAlertActionStyleDestructive
+                                                        handler:^(UIAlertAction *action) {
+        NSLog(@"\U0001F9F9 [SDL_uikitviewcontroller] Sending am kill-all to remote device");
+        [ADBClient.shared executeADBCommandAsync:@[@"shell", @"am", @"kill-all"] callback:^(NSString * _Nullable result, int returnCode) {
+            NSLog(@"\U0001F9F9 [SDL_uikitviewcontroller] am kill-all returned %d: %@", returnCode, result);
+        }];
+    }];
+
+    UIAlertAction *cancelAction = [UIAlertAction actionWithTitle:NSLocalizedString(@"Cancel", @"Cancel button")
+                                                           style:UIAlertActionStyleCancel
+                                                         handler:nil];
+
+    [alert addAction:cancelAction];
+    [alert addAction:cleanAction];
+
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [self presentViewController:alert animated:YES completion:nil];
+    });
+}
+
 - (void)didTapDisconnectButton {
     // Post notification to disconnect
     [[NSNotificationCenter defaultCenter] postNotificationName:ScrcpyRequestDisconnectNotification object:nil];
