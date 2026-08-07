@@ -20,13 +20,15 @@
 #import "ScrcpyVNCClient.h"
 
 // Capsule View Constants
-static const CGFloat kCapsuleWidth = 55.0f;
-static const CGFloat kCapsuleHeight = 26.0f;
-static const CGFloat kCapsuleCornerRadius = 13.0f;
-static const CGFloat kCapsuleHandleIconWidth = 31.0f;
-static const CGFloat kCapsuleHandleIconHeight = 20.0f;
-static const CGFloat kCapsuleHandleIconX = 12.0f;
-static const CGFloat kCapsuleHandleIconY = 3.0f;
+// 收起态: 仿 AssistiveTouch 的圆球(原本是 55x26 的胶囊)
+static const CGFloat kCapsuleWidth = 50.0f;
+static const CGFloat kCapsuleHeight = 50.0f;
+static const CGFloat kCapsuleCornerRadius = 25.0f;
+// 圆球里的图标: 居中摆放(原来这几个值是按 55x26 胶囊硬算的, 换成圆球会偏)
+static const CGFloat kCapsuleHandleIconWidth = 24.0f;
+static const CGFloat kCapsuleHandleIconHeight = 24.0f;
+static const CGFloat kCapsuleHandleIconX = (kCapsuleWidth - kCapsuleHandleIconWidth) / 2.0f;
+static const CGFloat kCapsuleHandleIconY = (kCapsuleHeight - kCapsuleHandleIconHeight) / 2.0f;
 
 // Capsule Alpha Values
 static const CGFloat kCapsuleAlphaIdle = 0.3f;
@@ -34,15 +36,20 @@ static const CGFloat kCapsuleAlphaNormal = 0.8f;
 static const CGFloat kCapsuleAlphaExpanded = 0.8f;
 
 // Menu View Constants
-static const CGFloat kMenuHeight = 60.0f;
-static const CGFloat kMenuCornerRadius = 30.0f;
-static const CGFloat kMenuHorizontalPadding = 5.0f;
+// 展开态: 网格面板。原来是横向一条, 8 个按钮挤在一行既难点又难看;
+// 改成 3 列的网格, 按钮可以放大, 面板整体像 AssistiveTouch 那样是个圆角方块。
+static const NSInteger kMenuColumns = 3;
+static const CGFloat kMenuHeight = 60.0f;          /* 仅用于初始占位, 实际高度按行数算 */
+static const CGFloat kMenuCornerRadius = 22.0f;
+static const CGFloat kMenuHorizontalPadding = 10.0f;
+static const CGFloat kMenuVerticalPadding = 10.0f;
 static const CGFloat kMenuVerticalSpacing = 10.0f;
 
 // Button Constants
-static const CGFloat kButtonWidth = 52.0f;  // 60 -> 52 so 7 buttons fit within 400pt / narrow screens
+// 网格布局后不必再为了塞进一行而压缩宽度, 放回大尺寸并给出间距
+static const CGFloat kButtonWidth = 52.0f;
 static const CGFloat kButtonHeight = 60.0f;
-static const CGFloat kButtonSpacing = 0.0f;
+static const CGFloat kButtonSpacing = 6.0f;
 
 // Animation Constants
 static const CGFloat kAnimationDuration = 0.15f;
@@ -288,6 +295,48 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
     LOG_POSITION(@"Stored new center-relative ratio: (%.3f, %.3f)", ratioX, ratioY);
 }
 
+#pragma mark - AssistiveTouch 风格图标
+
+// 照着 iOS 辅助触控的小白点画: 外层圆角方框, 中间圆环, 正中实心圆点。
+// 三层都用白色但透明度递增, 越往里越实, 和系统观感一致。
++ (UIImage *)assistiveTouchIconOfSize:(CGSize)size {
+    UIGraphicsBeginImageContextWithOptions(size, NO, 0.0);
+    CGContextRef ctx = UIGraphicsGetCurrentContext();
+
+    CGFloat w = size.width;
+    CGFloat h = size.height;
+    CGFloat lineWidth = MAX(1.0, w * 0.075);
+
+    // 1) 外层圆角方框
+    CGFloat outerInset = lineWidth / 2.0;
+    CGRect outerRect = CGRectMake(outerInset, outerInset, w - outerInset * 2, h - outerInset * 2);
+    UIBezierPath *outer = [UIBezierPath bezierPathWithRoundedRect:outerRect
+                                                     cornerRadius:w * 0.30];
+    [[UIColor colorWithWhite:1.0 alpha:0.55] setStroke];
+    outer.lineWidth = lineWidth;
+    [outer stroke];
+
+    // 2) 中间圆环
+    CGFloat ringInset = w * 0.26;
+    CGRect ringRect = CGRectMake(ringInset, ringInset, w - ringInset * 2, h - ringInset * 2);
+    UIBezierPath *ring = [UIBezierPath bezierPathWithOvalInRect:ringRect];
+    [[UIColor colorWithWhite:1.0 alpha:0.75] setStroke];
+    ring.lineWidth = lineWidth;
+    [ring stroke];
+
+    // 3) 正中实心圆点
+    CGFloat dotInset = w * 0.40;
+    CGRect dotRect = CGRectMake(dotInset, dotInset, w - dotInset * 2, h - dotInset * 2);
+    UIBezierPath *dot = [UIBezierPath bezierPathWithOvalInRect:dotRect];
+    [[UIColor colorWithWhite:1.0 alpha:0.95] setFill];
+    [dot fill];
+
+    UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    (void)ctx;
+    return image;
+}
+
 #pragma mark - Setup Views
 
 - (void)setupViews {
@@ -300,21 +349,14 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
     self.capsuleBackgroundView.layer.cornerRadius = kCapsuleCornerRadius;
     self.capsuleBackgroundView.clipsToBounds = YES;
 
-    // Gradient layer for capsule background
-    CAGradientLayer *gradientLayer = [CAGradientLayer layer];
-    gradientLayer.frame = self.capsuleBackgroundView.bounds;
-    gradientLayer.colors = @[
-        (id)[UIColor colorWithRed:0.2 green:0.2 blue:0.2 alpha:0.85].CGColor,
-        (id)[UIColor colorWithRed:0.1 green:0.1 blue:0.1 alpha:0.9].CGColor
-    ];
-    gradientLayer.startPoint = CGPointMake(0, 0);
-    gradientLayer.endPoint = CGPointMake(1, 1);
-    [self.capsuleBackgroundView.layer insertSublayer:gradientLayer atIndex:0];
+    // 背景: 仿 iOS 辅助触控(小白点)—— 系统用的是纯色半透明深灰, 不是渐变。
+    // 渐变会让球看起来"有方向", 系统那个是均匀的。
+    self.capsuleBackgroundView.backgroundColor = [UIColor colorWithWhite:0.16 alpha:0.72];
 
-    // Add handle icon to the capsule
+    // 图标: 系统小白点内部是"圆角方框 + 圆环 + 实心圆点"三层同心图形,
+    // SF Symbols 里没有完全对应的, 自己画一个。
     self.capsuleHandleIcon = [[UIImageView alloc] initWithFrame:CGRectMake(kCapsuleHandleIconX, kCapsuleHandleIconY, kCapsuleHandleIconWidth, kCapsuleHandleIconHeight)];
-    self.capsuleHandleIcon.image = [UIImage systemImageNamed:kIconCapsuleHandle];
-    self.capsuleHandleIcon.tintColor = [UIColor colorWithWhite:1.0 alpha:1.0];
+    self.capsuleHandleIcon.image = [ScrcpyMenuView assistiveTouchIconOfSize:CGSizeMake(kCapsuleHandleIconWidth, kCapsuleHandleIconHeight)];
     self.capsuleHandleIcon.contentMode = UIViewContentModeScaleAspectFit;
 
     // Add subviews to capsule view
@@ -326,26 +368,20 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
     UIWindow *window = [self activeWindow];
     self.activeWindow = window;
 
-    CGFloat initialMenuWidth = 7 * kButtonWidth + 6 * kButtonSpacing + kMenuHorizontalPadding * 2;
+    CGFloat initialMenuWidth = kMenuColumns * kButtonWidth + (kMenuColumns - 1) * kButtonSpacing + kMenuHorizontalPadding * 2;
     CGFloat maxAvailableWidth = window.bounds.size.width - (kMenuHorizontalPadding * 2);
     initialMenuWidth = MIN(initialMenuWidth, maxAvailableWidth);
+    // 初始按 3 行估个高度, 真正的高度在 updateButtonLayout 里按可见按钮数算
+    CGFloat initialMenuHeight = 3 * kButtonHeight + 2 * kButtonSpacing + kMenuVerticalPadding * 2;
 
-    self.menuView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, initialMenuWidth, kMenuHeight)];
+    self.menuView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, initialMenuWidth, initialMenuHeight)];
     self.menuView.layer.cornerRadius = kMenuCornerRadius;
     self.menuView.clipsToBounds = YES;
     self.menuView.alpha = 0;
     self.menuView.hidden = YES;
 
-    // Gradient layer for menu
-    CAGradientLayer *menuGradientLayer = [CAGradientLayer layer];
-    menuGradientLayer.frame = CGRectMake(0, 0, initialMenuWidth, kMenuHeight);
-    menuGradientLayer.colors = @[
-        (id)[UIColor colorWithRed:0.2 green:0.2 blue:0.2 alpha:0.85].CGColor,
-        (id)[UIColor colorWithRed:0.1 green:0.1 blue:0.1 alpha:0.9].CGColor
-    ];
-    menuGradientLayer.startPoint = CGPointMake(0, 0);
-    menuGradientLayer.endPoint = CGPointMake(1, 0);
-    [self.menuView.layer insertSublayer:menuGradientLayer atIndex:0];
+    // 展开面板: 和圆球同一种纯色半透明, 不用渐变(系统辅助触控的面板也是均匀色)
+    self.menuView.backgroundColor = [UIColor colorWithWhite:0.16 alpha:0.72];
     self.menuView.layer.masksToBounds = YES;
 
     // Create buttons with temporary positions
@@ -631,11 +667,6 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
     }
 
     self.menuView.frame = CGRectMake(menuX, menuY, menuWidth, menuHeight);
-
-    if (self.menuView.layer.sublayers.count > 0 &&
-        [self.menuView.layer.sublayers[0] isKindOfClass:[CAGradientLayer class]]) {
-        ((CAGradientLayer *)self.menuView.layer.sublayers[0]).frame = self.menuView.bounds;
-    }
 
     LOG_POSITION(@"🔧 updateMenuPosition completed, menu frame: (%.2f, %.2f, %.2f, %.2f)",
                  self.menuView.frame.origin.x, self.menuView.frame.origin.y,
@@ -938,11 +969,16 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
     CGFloat buttonHeight = kButtonHeight;
     CGFloat spacing = kButtonSpacing;
 
-    CGFloat totalButtonsWidth = visibleButtons.count * buttonWidth + (visibleButtons.count - 1) * spacing;
-    CGFloat idealMenuWidth = totalButtonsWidth + kMenuHorizontalPadding * 2;
+    // 网格排布: 每行最多 kMenuColumns 个, 不足一行时按实际个数算宽度
+    NSInteger totalCount = (NSInteger)visibleButtons.count;
+    NSInteger columns = MIN(totalCount, kMenuColumns);
+    NSInteger rows = (totalCount + kMenuColumns - 1) / kMenuColumns;
+
+    CGFloat idealMenuWidth = columns * buttonWidth + (columns - 1) * spacing + kMenuHorizontalPadding * 2;
+    CGFloat idealMenuHeight = rows * buttonHeight + (rows - 1) * spacing + kMenuVerticalPadding * 2;
 
     CGRect currentFrame = self.menuView.frame;
-    CGFloat menuHeight = currentFrame.size.height;
+    CGFloat menuHeight = idealMenuHeight;
 
     // Re-center horizontally after the width changes instead of keeping the old
     // origin (which left the menu visually shifted to the left)
@@ -954,27 +990,34 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
                           MIN(hostView.bounds.size.width - idealMenuWidth - kMenuHorizontalPadding, menuOriginX));
     }
 
-    self.menuView.frame = CGRectMake(menuOriginX, currentFrame.origin.y, idealMenuWidth, menuHeight);
+    // 面板变高之后要保证不会顶出屏幕
+    CGFloat menuOriginY = currentFrame.origin.y;
+    if (hostView) {
+        CGFloat maxY = hostView.bounds.size.height - idealMenuHeight - kMenuVerticalPadding;
+        menuOriginY = MAX(kMenuVerticalPadding, MIN(maxY, menuOriginY));
+    }
 
-    CGFloat containerStartX = kMenuHorizontalPadding;
-    CGFloat containerY = (menuHeight - buttonHeight) / 2.0;
+    self.menuView.frame = CGRectMake(menuOriginX, menuOriginY, idealMenuWidth, menuHeight);
 
-    for (NSInteger i = 0; i < (NSInteger)visibleButtons.count; i++) {
+    for (NSInteger i = 0; i < totalCount; i++) {
         UIButton *button = visibleButtons[i];
-        CGFloat xPosition = containerStartX + i * (buttonWidth + spacing);
+
+        NSInteger row = i / kMenuColumns;
+        NSInteger col = i % kMenuColumns;
+
+        // 最后一行不满时居中摆放, 免得孤零零地挂在左边
+        NSInteger countInThisRow = MIN(kMenuColumns, totalCount - row * kMenuColumns);
+        CGFloat rowWidth = countInThisRow * buttonWidth + (countInThisRow - 1) * spacing;
+        CGFloat rowStartX = (idealMenuWidth - rowWidth) / 2.0;
+
+        CGFloat xPosition = rowStartX + col * (buttonWidth + spacing);
+        CGFloat yPosition = kMenuVerticalPadding + row * (buttonHeight + spacing);
 
         button.translatesAutoresizingMaskIntoConstraints = YES;
-        button.frame = CGRectMake(xPosition, containerY, buttonWidth, buttonHeight);
+        button.frame = CGRectMake(xPosition, yPosition, buttonWidth, buttonHeight);
 
         [button setNeedsLayout];
         [button layoutIfNeeded];
-    }
-
-    for (CALayer *layer in self.menuView.layer.sublayers) {
-        if ([layer isKindOfClass:[CAGradientLayer class]]) {
-            layer.frame = CGRectMake(0, 0, idealMenuWidth, menuHeight);
-            break;
-        }
     }
 
     [self.menuView setNeedsLayout];
