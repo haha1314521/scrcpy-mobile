@@ -429,6 +429,10 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
     self.rebootButton = [self createButtonWithIcon:kIconRebootButton position:tempButtonFrame];
     [self.menuView addSubview:self.rebootButton];
 
+    // 查看 UI 布局(uiautomator dump): 写自动化脚本时用得很多, 提到按钮条上
+    self.dumpUIButton = [self createButtonWithIcon:kIconDumpUIButton position:tempButtonFrame];
+    [self.menuView addSubview:self.dumpUIButton];
+
     // Disconnect button
     self.disconnectButton = [self createButtonWithIcon:kIconDisconnectButton position:tempButtonFrame];
     [self.menuView addSubview:self.disconnectButton];
@@ -721,6 +725,17 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
     }
 }
 
+- (void)dumpUIButtonTapped:(UIButton *)sender {
+    NSLog(@"🔍 [ScrcpyMenuView] Dump UI button tapped");
+    // 先把菜单收起来, 否则 uiautomator 抓到的是被菜单挡住的画面
+    if (self.isExpanded) {
+        [self toggleMenuExpansion];
+    }
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.35 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        [self showDumpUILayouts];
+    });
+}
+
 - (void)keyboardButtonTapped:(UIButton *)sender {
     if ([self.delegate respondsToSelector:@selector(didTapKeyboardButton)]) {
         [self.delegate didTapKeyboardButton];
@@ -897,6 +912,7 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
         self.actionsButton.hidden = NO;
         self.clipboardSyncButton.hidden = YES;
         self.rebootButton.hidden = NO;
+        self.dumpUIButton.hidden = NO;
         self.disconnectButton.hidden = NO;
 
         [self removePinchGesture];
@@ -912,6 +928,7 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
         self.actionsButton.hidden = NO;
         self.clipboardSyncButton.hidden = NO;
         self.rebootButton.hidden = YES;
+        self.dumpUIButton.hidden = YES;
         self.disconnectButton.hidden = NO;
 
         LOG_POSITION(@"🐆 [ScrcpyMenuView] Scheduling VNC gestures setup with 0.3s delay");
@@ -940,6 +957,7 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
     if (!self.actionsButton.hidden) [visibleButtons addObject:self.actionsButton];
     if (!self.clipboardSyncButton.hidden) [visibleButtons addObject:self.clipboardSyncButton];
     if (!self.rebootButton.hidden) [visibleButtons addObject:self.rebootButton];
+    if (!self.dumpUIButton.hidden) [visibleButtons addObject:self.dumpUIButton];
     if (!self.disconnectButton.hidden) [visibleButtons addObject:self.disconnectButton];
 
     return [visibleButtons copy];
@@ -1156,6 +1174,8 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
         [[NSNotificationCenter defaultCenter] postNotificationName:kNotificationVNCSyncClipboardRequest object:nil];
     } else if ([buttonType isEqualToString:kIconRebootButton]) {
         [self rebootButtonTapped:nil];
+    } else if ([buttonType isEqualToString:kIconDumpUIButton]) {
+        [self dumpUIButtonTapped:nil];
     } else if ([buttonType isEqualToString:kIconDisconnectButton]) {
         [self disconnectButtonTapped:nil];
     }

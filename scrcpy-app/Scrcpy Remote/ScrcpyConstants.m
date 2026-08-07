@@ -18,6 +18,8 @@ NSString * const kIconKeyboardButton = @"keyboard";
 NSString * const kIconActionsButton = @"ellipsis.circle";
 NSString * const kIconDisconnectButton = @"xmark.circle";
 NSString * const kIconRebootButton = @"power";
+// 查看界面控件树; 用 SF Symbols 1.0 就有的图标, 避免 iOS 14 上空白
+NSString * const kIconDumpUIButton = @"square.grid.3x3";
 NSString * const kIconClipboardSyncButton = @"square.and.arrow.up.on.square";
 
 // UserDefaults Keys
