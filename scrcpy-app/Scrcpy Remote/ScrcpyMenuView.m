@@ -968,9 +968,8 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
     if (!self.clipboardSyncButton.hidden) [visibleButtons addObject:self.clipboardSyncButton];
     if (!self.screenshotButton.hidden) [visibleButtons addObject:self.screenshotButton];
     if (!self.cleanupButton.hidden) [visibleButtons addObject:self.cleanupButton];
-    // 重启放在清理后台后面: 两个都是对设备本身的操作, 挑战性递增
-    if (!self.rebootButton.hidden) [visibleButtons addObject:self.rebootButton];
     if (!self.disconnectButton.hidden) [visibleButtons addObject:self.disconnectButton];
+    if (!self.rebootButton.hidden) [visibleButtons addObject:self.rebootButton];
 
     return [visibleButtons copy];
 }
