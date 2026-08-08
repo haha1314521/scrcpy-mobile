@@ -1468,7 +1468,8 @@ struct ActionsView: View {
     /// 不用再进「更多」里找 —— 比如把"打开某个 App"放到球里。
     private func togglePinToFloatingMenu(_ action: ScrcpyAction) {
         action.showInFloatingMenu.toggle()
-        actionManager.updateAction(action)
+        // ActionManager 里新增和修改走的是同一个方法(按 id 覆盖)
+        actionManager.saveAction(action)
     }
 
     private func copyURLScheme(for action: ScrcpyAction) {
