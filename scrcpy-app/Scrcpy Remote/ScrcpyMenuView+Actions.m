@@ -279,7 +279,8 @@
 
 // 截取当前设备屏幕(走 adb screencap,原始像素,保存到相册)
 - (BOOL)shouldShowScreenshotOption {
-    return self.currentDeviceType == ScrcpyDeviceTypeADB;
+    // 已经提到悬浮菜单的按钮条上了, 菜单里不再重复一份
+    return NO;
 }
 
 - (BOOL)shouldShowDumpUILayoutsOption {
@@ -362,8 +363,7 @@
     // Check if this is the "Dump UI Layouts" row (second embedded row for ADB devices)
     if ([self shouldShowDumpUILayoutsOption]) {
         if (indexPath.row == embeddedRowIndex) {
-            UIImageSymbolConfiguration *dumpConfig = [UIImageSymbolConfiguration configurationWithPointSize:15 weight:UIImageSymbolWeightMedium];
-            UIImage *dumpIcon = [[UIImage systemImageNamed:@"rectangle.3.group" withConfiguration:dumpConfig]
+            UIImage *dumpIcon = [[UIImage systemImageNamed:@"square.grid.3x3" withConfiguration:largeConfig]
                                  imageWithTintColor:[UIColor systemPurpleColor] renderingMode:UIImageRenderingModeAlwaysOriginal];
             cell.imageView.image = [self imageWithIcon:dumpIcon inSize:iconContainerSize];
             cell.textLabel.text = NSLocalizedString(@"Dump UI Layouts", nil);

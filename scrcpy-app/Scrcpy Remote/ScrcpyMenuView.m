@@ -429,9 +429,9 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
     self.rebootButton = [self createButtonWithIcon:kIconRebootButton position:tempButtonFrame];
     [self.menuView addSubview:self.rebootButton];
 
-    // 查看 UI 布局(uiautomator dump): 写自动化脚本时用得很多, 提到按钮条上
-    self.dumpUIButton = [self createButtonWithIcon:kIconDumpUIButton position:tempButtonFrame];
-    [self.menuView addSubview:self.dumpUIButton];
+    // 截取当前屏幕: 高频操作, 放在按钮条上一步直达(「查看 UI 布局」留在更多菜单里)
+    self.screenshotButton = [self createButtonWithIcon:kIconScreenshotButton position:tempButtonFrame];
+    [self.menuView addSubview:self.screenshotButton];
 
     // 清理后台(adb shell am kill-all)
     self.cleanupButton = [self createButtonWithIcon:kIconCleanupButton position:tempButtonFrame];
@@ -733,14 +733,14 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
     }
 }
 
-- (void)dumpUIButtonTapped:(UIButton *)sender {
-    NSLog(@"🔍 [ScrcpyMenuView] Dump UI button tapped");
-    // 先把菜单收起来, 否则 uiautomator 抓到的是被菜单挡住的画面
+- (void)screenshotButtonTapped:(UIButton *)sender {
+    NSLog(@"📷 [ScrcpyMenuView] Screenshot button tapped");
+    // 先收起菜单, 否则截到的画面里会有菜单本身
     if (self.isExpanded) {
         [self toggleMenuExpansion];
     }
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.35 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        [self showDumpUILayouts];
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.45 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        [self captureDeviceScreenshot];
     });
 }
 
@@ -920,7 +920,7 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
         self.actionsButton.hidden = NO;
         self.clipboardSyncButton.hidden = YES;
         self.rebootButton.hidden = NO;
-        self.dumpUIButton.hidden = NO;
+        self.screenshotButton.hidden = NO;
         self.cleanupButton.hidden = NO;
         self.disconnectButton.hidden = NO;
 
@@ -937,7 +937,7 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
         self.actionsButton.hidden = NO;
         self.clipboardSyncButton.hidden = NO;
         self.rebootButton.hidden = YES;
-        self.dumpUIButton.hidden = YES;
+        self.screenshotButton.hidden = YES;
         self.cleanupButton.hidden = YES;
         self.disconnectButton.hidden = NO;
 
@@ -966,9 +966,10 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
     if (!self.keyboardButton.hidden) [visibleButtons addObject:self.keyboardButton];
     if (!self.actionsButton.hidden) [visibleButtons addObject:self.actionsButton];
     if (!self.clipboardSyncButton.hidden) [visibleButtons addObject:self.clipboardSyncButton];
-    if (!self.rebootButton.hidden) [visibleButtons addObject:self.rebootButton];
-    if (!self.dumpUIButton.hidden) [visibleButtons addObject:self.dumpUIButton];
+    if (!self.screenshotButton.hidden) [visibleButtons addObject:self.screenshotButton];
     if (!self.cleanupButton.hidden) [visibleButtons addObject:self.cleanupButton];
+    // 重启放在清理后台后面: 两个都是对设备本身的操作, 挑战性递增
+    if (!self.rebootButton.hidden) [visibleButtons addObject:self.rebootButton];
     if (!self.disconnectButton.hidden) [visibleButtons addObject:self.disconnectButton];
 
     return [visibleButtons copy];
@@ -1185,8 +1186,8 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
         [[NSNotificationCenter defaultCenter] postNotificationName:kNotificationVNCSyncClipboardRequest object:nil];
     } else if ([buttonType isEqualToString:kIconRebootButton]) {
         [self rebootButtonTapped:nil];
-    } else if ([buttonType isEqualToString:kIconDumpUIButton]) {
-        [self dumpUIButtonTapped:nil];
+    } else if ([buttonType isEqualToString:kIconScreenshotButton]) {
+        [self screenshotButtonTapped:nil];
     } else if ([buttonType isEqualToString:kIconCleanupButton]) {
         [self cleanupButtonTapped:nil];
     } else if ([buttonType isEqualToString:kIconDisconnectButton]) {
