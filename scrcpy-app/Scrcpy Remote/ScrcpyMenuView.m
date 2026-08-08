@@ -575,6 +575,8 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
     } else {
         // 展开: 启用"点空白处收起"手势
         self.dismissGestureRecognizer.enabled = YES;
+        // 动作可能刚被新建/删除/改图标, 每次展开都重建一遍
+        [self refreshCustomActionButtons];
         [self updateMenuPosition];
         [self updateButtonLayout];
         self.menuView.hidden = NO;
@@ -732,6 +734,22 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
     if ([self.delegate respondsToSelector:@selector(didTapCleanupButton)]) {
         [self.delegate didTapCleanupButton];
     }
+}
+
+/// 执行被固定到按钮条上的自定义动作
+- (void)executePinnedActionWithId:(NSString *)actionId {
+    NSArray<ScrcpyActionData *> *actions = [[ScrcpyActionsBridge shared] getActionsForCurrentDevice];
+    for (ScrcpyActionData *action in actions) {
+        if (![action.actionId isEqualToString:actionId]) continue;
+
+        NSLog(@"\U0001F9E9 [ScrcpyMenuView] Executing pinned action: %@", action.name);
+        if (self.isExpanded) {
+            [self toggleMenuExpansion];
+        }
+        [self executeActionData:action];
+        return;
+    }
+    NSLog(@"\U0001F9E9 [ScrcpyMenuView] Pinned action %@ not found (deleted?)", actionId);
 }
 
 - (void)screenshotButtonTapped:(UIButton *)sender {
@@ -972,7 +990,44 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
     if (!self.disconnectButton.hidden) [visibleButtons addObject:self.disconnectButton];
     if (!self.rebootButton.hidden) [visibleButtons addObject:self.rebootButton];
 
+    // 勾选了上按钮条的自定义动作接在后面
+    for (UIButton *button in self.customActionButtons) {
+        if (!button.hidden) [visibleButtons addObject:button];
+    }
+
     return [visibleButtons copy];
+}
+
+/// 重建自定义动作按钮。
+///
+/// 动作可能随时被新建/删除/改图标, 所以不做增量更新, 直接全部重建。
+/// 按钮的 accessibilityIdentifier 存成 "action:<uuid>", 点击分发时靠这个前缀识别。
+- (void)refreshCustomActionButtons {
+    if (!self.customActionButtons) {
+        self.customActionButtons = [NSMutableArray array];
+    }
+    for (UIButton *button in self.customActionButtons) {
+        [button removeFromSuperview];
+    }
+    [self.customActionButtons removeAllObjects];
+
+    NSArray<ScrcpyActionData *> *actions = [[ScrcpyActionsBridge shared] getActionsForCurrentDevice];
+    for (ScrcpyActionData *action in actions) {
+        if (!action.showInFloatingMenu) continue;
+
+        NSString *iconName = action.floatingMenuIcon.length > 0 ? action.floatingMenuIcon : @"bolt.fill";
+        UIButton *button = [self createButtonWithIcon:iconName
+                                             position:CGRectMake(0, 0, kButtonWidth, kButtonHeight)];
+        // 用前缀区分于固定按钮(固定按钮存的是图标名)
+        button.accessibilityIdentifier = [NSString stringWithFormat:@"action:%@", action.actionId];
+        [self.menuView addSubview:button];
+        [self.customActionButtons addObject:button];
+    }
+
+    if (self.customActionButtons.count > 0) {
+        NSLog(@"\U0001F9E9 [ScrcpyMenuView] %lu custom action button(s) on the bar",
+              (unsigned long)self.customActionButtons.count);
+    }
 }
 
 - (void)updateButtonLayout {
@@ -1186,6 +1241,8 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
         [[NSNotificationCenter defaultCenter] postNotificationName:kNotificationVNCSyncClipboardRequest object:nil];
     } else if ([buttonType isEqualToString:kIconRebootButton]) {
         [self rebootButtonTapped:nil];
+    } else if ([buttonType hasPrefix:@"action:"]) {
+        [self executePinnedActionWithId:[buttonType substringFromIndex:7]];
     } else if ([buttonType isEqualToString:kIconScreenshotButton]) {
         [self screenshotButtonTapped:nil];
     } else if ([buttonType isEqualToString:kIconCleanupButton]) {

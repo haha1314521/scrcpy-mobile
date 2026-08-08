@@ -110,6 +110,8 @@
         ScrcpyActionData *actionData = [[ScrcpyActionData alloc] init];
         actionData.actionId = action.id.UUIDString;
         actionData.name = action.name;
+        actionData.showInFloatingMenu = action.showInFloatingMenu;
+        actionData.floatingMenuIcon = action.floatingMenuIcon;
 
         // Convert device type using intValue
         actionData.deviceType = (action.deviceTypeIntValue == 0) ? @"VNC" : @"ADB";

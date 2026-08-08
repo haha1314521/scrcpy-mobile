@@ -77,6 +77,12 @@ enum ExecutionTiming: String, Codable, CaseIterable {
     var adbActionType: ADBActionType = .homeKey
     var adbInputKeysConfig: ADBInputKeysConfig = ADBInputKeysConfig()
     var adbShellConfig: ADBShellConfig = ADBShellConfig()
+
+    /// 把这个动作直接放到悬浮菜单的按钮网格里,
+    /// 而不是只出现在「更多」列表中。
+    @objc var showInFloatingMenu: Bool = false
+    /// 上按钮条时用的 SF Symbol 名称
+    @objc var floatingMenuIcon: String = "bolt.fill"
     
     // Objective-C compatible accessors for enum properties
     @objc var deviceTypeIntValue: Int {
@@ -142,6 +148,9 @@ enum ExecutionTiming: String, Codable, CaseIterable {
         adbActionType = try container.decode(ADBActionType.self, forKey: .adbActionType)
         adbInputKeysConfig = try container.decode(ADBInputKeysConfig.self, forKey: .adbInputKeysConfig)
         adbShellConfig = try container.decode(ADBShellConfig.self, forKey: .adbShellConfig)
+        // 旧版本存的数据没有这两个字段, 必须用 decodeIfPresent, 否则老动作全部解析失败
+        showInFloatingMenu = try container.decodeIfPresent(Bool.self, forKey: .showInFloatingMenu) ?? false
+        floatingMenuIcon = try container.decodeIfPresent(String.self, forKey: .floatingMenuIcon) ?? "bolt.fill"
         super.init()
     }
     
@@ -159,6 +168,8 @@ enum ExecutionTiming: String, Codable, CaseIterable {
         case adbActionType
         case adbInputKeysConfig
         case adbShellConfig
+        case showInFloatingMenu
+        case floatingMenuIcon
     }
 }
 
@@ -1175,6 +1186,12 @@ struct ActionsView: View {
                                 Label("Copy URL Scheme", systemImage: "link")
                             }
                             Button(action: {
+                                togglePinToFloatingMenu(action)
+                            }) {
+                                Label(action.showInFloatingMenu ? "Unpin from Floating Menu" : "Pin to Floating Menu",
+                                      systemImage: action.showInFloatingMenu ? "pin.slash" : "pin")
+                            }
+                            Button(action: {
                                 actionToDelete = action
                                 showingDeleteAlert = true
                             }) {
@@ -1445,6 +1462,15 @@ struct ActionsView: View {
     
     // MARK: - URL Scheme Methods
     
+    /// 把动作固定到悬浮菜单的按钮网格里(再点一次取消)。
+    ///
+    /// 固定后会以一个按钮的形式出现在悬浮球展开的网格中,
+    /// 不用再进「更多」里找 —— 比如把"打开某个 App"放到球里。
+    private func togglePinToFloatingMenu(_ action: ScrcpyAction) {
+        action.showInFloatingMenu.toggle()
+        actionManager.updateAction(action)
+    }
+
     private func copyURLScheme(for action: ScrcpyAction) {
         let urlScheme = generateURLScheme(for: action)
         UIPasteboard.general.string = urlScheme

@@ -36,6 +36,8 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, strong) UIButton *rebootButton;
 @property (nonatomic, strong) UIButton *screenshotButton;
 @property (nonatomic, strong) UIButton *cleanupButton;
+/// 勾选了「显示在悬浮菜单」的自定义动作, 每次展开前重建
+@property (nonatomic, strong) NSMutableArray<UIButton *> *customActionButtons;
 @property (nonatomic, strong) UIButton *disconnectButton;
 
 // State

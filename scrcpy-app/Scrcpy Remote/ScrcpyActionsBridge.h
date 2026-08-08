@@ -19,6 +19,8 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, strong) NSString *executionTiming; // "immediate", "delayed", "confirmation"
 @property (nonatomic, assign) NSInteger delaySeconds;
 @property (nonatomic, assign) BOOL isAnyDeviceAction; // True if this action works on any device of the type
+@property (nonatomic, assign) BOOL showInFloatingMenu;  // 直接放到悬浮菜单的按钮网格里
+@property (nonatomic, strong) NSString *floatingMenuIcon;  // 上按钮条时的 SF Symbol
 @end
 
 // Callback types for action execution
