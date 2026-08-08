@@ -1,4 +1,4 @@
-//
+﻿//
 //  ScrcpyMenuView.m
 //  Scrcpy Remote
 //
@@ -21,11 +21,11 @@
 #import "ScrcpyVNCClient.h"
 
 // Capsule View Constants
-// 收起态: 仿 AssistiveTouch 的圆球(原本是 55x26 的胶囊)
+// 鏀惰捣鎬? 浠?AssistiveTouch 鐨勫渾鐞?鍘熸湰鏄?55x26 鐨勮兌鍥?
 static const CGFloat kCapsuleWidth = 50.0f;
 static const CGFloat kCapsuleHeight = 50.0f;
 static const CGFloat kCapsuleCornerRadius = 25.0f;
-// 圆球里的图标: 居中摆放(原来这几个值是按 55x26 胶囊硬算的, 换成圆球会偏)
+// 鍦嗙悆閲岀殑鍥炬爣: 灞呬腑鎽嗘斁(鍘熸潵杩欏嚑涓€兼槸鎸?55x26 鑳跺泭纭畻鐨? 鎹㈡垚鍦嗙悆浼氬亸)
 static const CGFloat kCapsuleHandleIconWidth = 24.0f;
 static const CGFloat kCapsuleHandleIconHeight = 24.0f;
 static const CGFloat kCapsuleHandleIconX = (kCapsuleWidth - kCapsuleHandleIconWidth) / 2.0f;
@@ -37,19 +37,17 @@ static const CGFloat kCapsuleAlphaNormal = 0.8f;
 static const CGFloat kCapsuleAlphaExpanded = 0.8f;
 
 // Menu View Constants
-// 展开态: 网格面板。原来是横向一条, 8 个按钮挤在一行既难点又难看;
-// 改成 3 列的网格, 按钮可以放大, 面板整体像 AssistiveTouch 那样是个圆角方块。
-static const NSInteger kMenuColumns = 3;
-static const CGFloat kMenuHeight = 60.0f;          /* 仅用于初始占位, 实际高度按行数算 */
+// 灞曞紑鎬? 缃戞牸闈㈡澘銆傚師鏉ユ槸妯悜涓€鏉? 8 涓寜閽尋鍦ㄤ竴琛屾棦闅剧偣鍙堥毦鐪?
+// 鏀规垚 3 鍒楃殑缃戞牸, 鎸夐挳鍙互鏀惧ぇ, 闈㈡澘鏁翠綋鍍?AssistiveTouch 閭ｆ牱鏄釜鍦嗚鏂瑰潡銆?static const NSInteger kMenuColumns = 3;
+static const CGFloat kMenuHeight = 60.0f;          /* 浠呯敤浜庡垵濮嬪崰浣? 瀹為檯楂樺害鎸夎鏁扮畻 */
 static const CGFloat kMenuCornerRadius = 22.0f;
 static const CGFloat kMenuHorizontalPadding = 8.0f;
 static const CGFloat kMenuVerticalPadding = 8.0f;
 static const CGFloat kMenuVerticalSpacing = 10.0f;
 
 // Button Constants
-// 网格里按钮做成正方形。原本 52x60 是横排一条时的尺寸,
-// 高比宽还大, 摆到 3x3 网格里会显得整个面板又高又墩。
-static const CGFloat kButtonWidth = 48.0f;
+// 缃戞牸閲屾寜閽仛鎴愭鏂瑰舰銆傚師鏈?52x60 鏄í鎺掍竴鏉℃椂鐨勫昂瀵?
+// 楂樻瘮瀹借繕澶? 鎽嗗埌 3x3 缃戞牸閲屼細鏄惧緱鏁翠釜闈㈡澘鍙堥珮鍙堝ⅸ銆?static const CGFloat kButtonWidth = 48.0f;
 static const CGFloat kButtonHeight = 48.0f;
 static const CGFloat kButtonSpacing = 4.0f;
 
@@ -178,6 +176,15 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
 
     LOG_POSITION(@"Screen size: %.1f x %.1f", screenWidth, screenHeight);
 
+    // 鍒囧悗鍙?鍥炲墠鍙扮殑鐬棿 window 鍙兘杩樻病甯冨眬濂? bounds 鏄?0銆?    // 杩欐椂涓嬮潰绠楀嚭鏉ョ殑"鏈€澶у亸绉?涔熸槸 0, 浣嶇疆浼氬闄锋垚灞忓箷姝ｄ腑 鈥斺€?    // 琛ㄧ幇灏辨槸"鍒囦竴娆″悗鍙板洖鏉? 鎮诞鐞冭窇鍒颁腑闂村幓浜?銆傜洿鎺ユ斁寮冭繖娆″畾浣嶃€?    if (screenWidth <= 1.0 || screenHeight <= 1.0) {
+        LOG_POSITION(@"Window not laid out yet (%.1f x %.1f), skip repositioning", screenWidth, screenHeight);
+        return;
+    }
+    if (self.frame.size.width <= 1.0 || self.frame.size.height <= 1.0) {
+        LOG_POSITION(@"Self not sized yet, skip repositioning");
+        return;
+    }
+
     // Calculate screen center
     CGFloat screenCenterX = screenWidth / 2.0;
     CGFloat screenCenterY = screenHeight / 2.0;
@@ -200,6 +207,12 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
 
     LOG_POSITION(@"Screen center: (%.1f, %.1f), Max offsets: (%.1f, %.1f)",
                  screenCenterX, screenCenterY, maxOffsetX, maxOffsetY);
+
+    // 鍚岀悊: 鍋忕Щ閲忓闄锋椂涓嶈纭畻, 鍚﹀垯缁撴灉灏辨槸灞忓箷姝ｄ腑
+    if (maxOffsetX <= 1.0 && maxOffsetY <= 1.0) {
+        LOG_POSITION(@"Max offsets collapsed (%.1f, %.1f), skip repositioning", maxOffsetX, maxOffsetY);
+        return;
+    }
 
     // Calculate capsule center position using center-relative ratio
     CGFloat capsuleCenterX = screenCenterX + (maxOffsetX * self.positionRatio.x);
@@ -297,28 +310,24 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
     LOG_POSITION(@"Stored new center-relative ratio: (%.3f, %.3f)", ratioX, ratioY);
 }
 
-#pragma mark - AssistiveTouch 风格图标
+#pragma mark - AssistiveTouch 椋庢牸鍥炬爣
 
-// 照着 iOS 辅助触控的小白点画: 外层圆角方框, 中间圆环, 正中实心圆点。
-// 三层都用白色但透明度递增, 越往里越实, 和系统观感一致。
-+ (UIImage *)assistiveTouchIconOfSize:(CGSize)size {
+// 鐓х潃 iOS 杈呭姪瑙︽帶鐨勫皬鐧界偣鐢? 澶栧眰鍦嗚鏂规, 涓棿鍦嗙幆, 姝ｄ腑瀹炲績鍦嗙偣銆?// 涓夊眰閮界敤鐧借壊浣嗛€忔槑搴﹂€掑, 瓒婂線閲岃秺瀹? 鍜岀郴缁熻鎰熶竴鑷淬€?+ (UIImage *)assistiveTouchIconOfSize:(CGSize)size {
     UIGraphicsBeginImageContextWithOptions(size, NO, 0.0);
 
     CGFloat w = size.width;
     CGFloat h = size.height;
 
-    // 先前用描边画了一层圆角方框, 看着像相框。
-    // 系统小白点的视觉重心在中间的圆, 外层只是很淡的衬底,
-    // 所以改成: 淡底圆角方块(填充) + 圆环 + 中心圆点。
-
-    // 1) 淡底圆角方块(填充而非描边)
+    // 鍏堝墠鐢ㄦ弿杈圭敾浜嗕竴灞傚渾瑙掓柟妗? 鐪嬬潃鍍忕浉妗嗐€?    // 绯荤粺灏忕櫧鐐圭殑瑙嗚閲嶅績鍦ㄤ腑闂寸殑鍦? 澶栧眰鍙槸寰堟贰鐨勮‖搴?
+    // 鎵€浠ユ敼鎴? 娣″簳鍦嗚鏂瑰潡(濉厖) + 鍦嗙幆 + 涓績鍦嗙偣銆?
+    // 1) 娣″簳鍦嗚鏂瑰潡(濉厖鑰岄潪鎻忚竟)
     CGRect plateRect = CGRectMake(0, 0, w, h);
     UIBezierPath *plate = [UIBezierPath bezierPathWithRoundedRect:plateRect
                                                      cornerRadius:w * 0.32];
     [[UIColor colorWithWhite:1.0 alpha:0.22] setFill];
     [plate fill];
 
-    // 2) 圆环
+    // 2) 鍦嗙幆
     CGFloat ringLine = MAX(1.5, w * 0.085);
     CGFloat ringInset = w * 0.22;
     CGRect ringRect = CGRectInset(CGRectMake(0, 0, w, h), ringInset, ringInset);
@@ -327,7 +336,7 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
     [[UIColor colorWithWhite:1.0 alpha:0.92] setStroke];
     [ring stroke];
 
-    // 3) 中心实心圆点
+    // 3) 涓績瀹炲績鍦嗙偣
     CGFloat dotInset = w * 0.40;
     CGRect dotRect = CGRectInset(CGRectMake(0, 0, w, h), dotInset, dotInset);
     UIBezierPath *dot = [UIBezierPath bezierPathWithOvalInRect:dotRect];
@@ -351,13 +360,10 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
     self.capsuleBackgroundView.layer.cornerRadius = kCapsuleCornerRadius;
     self.capsuleBackgroundView.clipsToBounds = YES;
 
-    // 背景: 仿 iOS 辅助触控(小白点)—— 系统用的是纯色半透明深灰, 不是渐变。
-    // 渐变会让球看起来"有方向", 系统那个是均匀的。
-    self.capsuleBackgroundView.backgroundColor = [UIColor colorWithWhite:0.16 alpha:0.72];
+    // 鑳屾櫙: 浠?iOS 杈呭姪瑙︽帶(灏忕櫧鐐?鈥斺€?绯荤粺鐢ㄧ殑鏄函鑹插崐閫忔槑娣辩伆, 涓嶆槸娓愬彉銆?    // 娓愬彉浼氳鐞冪湅璧锋潵"鏈夋柟鍚?, 绯荤粺閭ｄ釜鏄潎鍖€鐨勩€?    self.capsuleBackgroundView.backgroundColor = [UIColor colorWithWhite:0.16 alpha:0.72];
 
-    // 图标: 系统小白点内部是"圆角方框 + 圆环 + 实心圆点"三层同心图形,
-    // SF Symbols 里没有完全对应的, 自己画一个。
-    self.capsuleHandleIcon = [[UIImageView alloc] initWithFrame:CGRectMake(kCapsuleHandleIconX, kCapsuleHandleIconY, kCapsuleHandleIconWidth, kCapsuleHandleIconHeight)];
+    // 鍥炬爣: 绯荤粺灏忕櫧鐐瑰唴閮ㄦ槸"鍦嗚鏂规 + 鍦嗙幆 + 瀹炲績鍦嗙偣"涓夊眰鍚屽績鍥惧舰,
+    // SF Symbols 閲屾病鏈夊畬鍏ㄥ搴旂殑, 鑷繁鐢讳竴涓€?    self.capsuleHandleIcon = [[UIImageView alloc] initWithFrame:CGRectMake(kCapsuleHandleIconX, kCapsuleHandleIconY, kCapsuleHandleIconWidth, kCapsuleHandleIconHeight)];
     self.capsuleHandleIcon.image = [ScrcpyMenuView assistiveTouchIconOfSize:CGSizeMake(kCapsuleHandleIconWidth, kCapsuleHandleIconHeight)];
     self.capsuleHandleIcon.contentMode = UIViewContentModeScaleAspectFit;
 
@@ -373,7 +379,7 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
     CGFloat initialMenuWidth = kMenuColumns * kButtonWidth + (kMenuColumns - 1) * kButtonSpacing + kMenuHorizontalPadding * 2;
     CGFloat maxAvailableWidth = window.bounds.size.width - (kMenuHorizontalPadding * 2);
     initialMenuWidth = MIN(initialMenuWidth, maxAvailableWidth);
-    // 初始按 3 行估个高度, 真正的高度在 updateButtonLayout 里按可见按钮数算
+    // 鍒濆鎸?3 琛屼及涓珮搴? 鐪熸鐨勯珮搴﹀湪 updateButtonLayout 閲屾寜鍙鎸夐挳鏁扮畻
     CGFloat initialMenuHeight = 3 * kButtonHeight + 2 * kButtonSpacing + kMenuVerticalPadding * 2;
 
     self.menuView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, initialMenuWidth, initialMenuHeight)];
@@ -382,7 +388,7 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
     self.menuView.alpha = 0;
     self.menuView.hidden = YES;
 
-    // 展开面板: 和圆球同一种纯色半透明, 不用渐变(系统辅助触控的面板也是均匀色)
+    // 灞曞紑闈㈡澘: 鍜屽渾鐞冨悓涓€绉嶇函鑹插崐閫忔槑, 涓嶇敤娓愬彉(绯荤粺杈呭姪瑙︽帶鐨勯潰鏉夸篃鏄潎鍖€鑹?
     self.menuView.backgroundColor = [UIColor colorWithWhite:0.16 alpha:0.72];
     self.menuView.layer.masksToBounds = YES;
 
@@ -419,7 +425,7 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
     actionsTapGesture.numberOfTapsRequired = 1;
     actionsTapGesture.cancelsTouchesInView = YES;
     [self.actionsButton addGestureRecognizer:actionsTapGesture];
-    NSLog(@"🎯 [ScrcpyMenuView] Added TapGesture to Actions button");
+    NSLog(@"馃幆 [ScrcpyMenuView] Added TapGesture to Actions button");
 
     [self.menuView addSubview:self.actionsButton];
 
@@ -431,11 +437,11 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
     self.rebootButton = [self createButtonWithIcon:kIconRebootButton position:tempButtonFrame];
     [self.menuView addSubview:self.rebootButton];
 
-    // 截取当前屏幕: 高频操作, 放在按钮条上一步直达(「查看 UI 布局」留在更多菜单里)
+    // 鎴彇褰撳墠灞忓箷: 楂橀鎿嶄綔, 鏀惧湪鎸夐挳鏉′笂涓€姝ョ洿杈?銆屾煡鐪?UI 甯冨眬銆嶇暀鍦ㄦ洿澶氳彍鍗曢噷)
     self.screenshotButton = [self createButtonWithIcon:kIconScreenshotButton position:tempButtonFrame];
     [self.menuView addSubview:self.screenshotButton];
 
-    // 清理后台(adb shell am kill-all)
+    // 娓呯悊鍚庡彴(adb shell am kill-all)
     self.cleanupButton = [self createButtonWithIcon:kIconCleanupButton position:tempButtonFrame];
     [self.menuView addSubview:self.cleanupButton];
 
@@ -476,15 +482,12 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
     panGesture.delaysTouchesEnded = YES;
     [self.capsuleView addGestureRecognizer:panGesture];
 
-    // "点空白处收起菜单"的手势挂在整个窗口上, 会拦截投屏画面上的每一次触摸。
-    // UIKit 在手势判定期间会扣住"抬手"事件(delaysTouchesEnded 默认 YES),
-    // 实测导致抬手延迟约 0.5 秒 —— 正好达到安卓的长按阈值, 单击就变成了长按。
-    // 因此: 平时禁用, 只在菜单展开时启用(那时本来也不该把点击透传给设备)。
-    UITapGestureRecognizer *dismissTapGesture = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(handleDismissTap:)];
+    // "鐐圭┖鐧藉鏀惰捣鑿滃崟"鐨勬墜鍔挎寕鍦ㄦ暣涓獥鍙ｄ笂, 浼氭嫤鎴姇灞忕敾闈笂鐨勬瘡涓€娆¤Е鎽搞€?    // UIKit 鍦ㄦ墜鍔垮垽瀹氭湡闂翠細鎵ｄ綇"鎶墜"浜嬩欢(delaysTouchesEnded 榛樿 YES),
+    // 瀹炴祴瀵艰嚧鎶墜寤惰繜绾?0.5 绉?鈥斺€?姝ｅソ杈惧埌瀹夊崜鐨勯暱鎸夐槇鍊? 鍗曞嚮灏卞彉鎴愪簡闀挎寜銆?    // 鍥犳: 骞虫椂绂佺敤, 鍙湪鑿滃崟灞曞紑鏃跺惎鐢?閭ｆ椂鏈潵涔熶笉璇ユ妸鐐瑰嚮閫忎紶缁欒澶?銆?    UITapGestureRecognizer *dismissTapGesture = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(handleDismissTap:)];
     dismissTapGesture.cancelsTouchesInView = YES;
     dismissTapGesture.delaysTouchesBegan = NO;
     dismissTapGesture.delaysTouchesEnded = NO;
-    dismissTapGesture.enabled = NO;                 // 菜单收起时不参与触摸判定
+    dismissTapGesture.enabled = NO;                 // 鑿滃崟鏀惰捣鏃朵笉鍙備笌瑙︽懜鍒ゅ畾
     self.dismissGestureRecognizer = dismissTapGesture;
     [[self activeWindow] addGestureRecognizer:dismissTapGesture];
 }
@@ -560,7 +563,7 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
 
 - (void)toggleMenuExpansion {
     if (self.isExpanded) {
-        // 收起: 关掉窗口级手势, 恢复投屏触摸的原生响应速度
+        // 鏀惰捣: 鍏虫帀绐楀彛绾ф墜鍔? 鎭㈠鎶曞睆瑙︽懜鐨勫師鐢熷搷搴旈€熷害
         self.dismissGestureRecognizer.enabled = NO;
         [UIView animateWithDuration:kAnimationDuration animations:^{
             self.menuView.alpha = 0;
@@ -574,10 +577,9 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
 
         [self.maskView hide];
     } else {
-        // 展开: 启用"点空白处收起"手势
+        // 灞曞紑: 鍚敤"鐐圭┖鐧藉鏀惰捣"鎵嬪娍
         self.dismissGestureRecognizer.enabled = YES;
-        // 动作可能刚被新建/删除/改图标, 每次展开都重建一遍
-        [self refreshCustomActionButtons];
+        // 鍔ㄤ綔鍙兘鍒氳鏂板缓/鍒犻櫎/鏀瑰浘鏍? 姣忔灞曞紑閮介噸寤轰竴閬?        [self refreshCustomActionButtons];
         [self updateMenuPosition];
         [self updateButtonLayout];
         self.menuView.hidden = NO;
@@ -619,8 +621,7 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
 
     CGRect screenBounds = window.bounds;
 
-    // 网格尺寸: 和 updateButtonLayout 里保持同一套算法
-    NSInteger visibleButtonCount = [self visibleButtonCount];
+    // 缃戞牸灏哄: 鍜?updateButtonLayout 閲屼繚鎸佸悓涓€濂楃畻娉?    NSInteger visibleButtonCount = [self visibleButtonCount];
     NSInteger columns = MIN(visibleButtonCount, kMenuColumns);
     NSInteger rows = (visibleButtonCount + kMenuColumns - 1) / kMenuColumns;
     if (columns < 1) columns = 1;
@@ -653,8 +654,7 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
     CGFloat screenCenterX = screenBounds.size.width / 2.0f;
     CGFloat capsuleCenterX = CGRectGetMidX(capsuleFrameInWindow);
 
-    // 面板以悬浮球为中心展开 —— 系统辅助触控就是在球附近弹出的, 手指不用跑远。
-    // (原来的逻辑是: 面板窄就跑到屏幕正中, 那是给横排长条菜单设计的, 网格面板不适用)
+    // 闈㈡澘浠ユ偓娴悆涓轰腑蹇冨睍寮€ 鈥斺€?绯荤粺杈呭姪瑙︽帶灏辨槸鍦ㄧ悆闄勮繎寮瑰嚭鐨? 鎵嬫寚涓嶇敤璺戣繙銆?    // (鍘熸潵鐨勯€昏緫鏄? 闈㈡澘绐勫氨璺戝埌灞忓箷姝ｄ腑, 閭ｆ槸缁欐í鎺掗暱鏉¤彍鍗曡璁＄殑, 缃戞牸闈㈡澘涓嶉€傜敤)
     menuX = capsuleCenterX - menuWidth / 2.0f;
     (void)screenCenterX;
 
@@ -678,7 +678,7 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
 
     self.menuView.frame = CGRectMake(menuX, menuY, menuWidth, menuHeight);
 
-    LOG_POSITION(@"🔧 updateMenuPosition completed, menu frame: (%.2f, %.2f, %.2f, %.2f)",
+    LOG_POSITION(@"馃敡 updateMenuPosition completed, menu frame: (%.2f, %.2f, %.2f, %.2f)",
                  self.menuView.frame.origin.x, self.menuView.frame.origin.y,
                  self.menuView.frame.size.width, self.menuView.frame.size.height);
 
@@ -737,7 +737,7 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
     }
 }
 
-/// 执行被固定到按钮条上的自定义动作
+/// 鎵ц琚浐瀹氬埌鎸夐挳鏉′笂鐨勮嚜瀹氫箟鍔ㄤ綔
 - (void)executePinnedActionWithId:(NSString *)actionId {
     NSArray<ScrcpyActionData *> *actions = [[ScrcpyActionsBridge shared] getActionsForCurrentDevice];
     for (ScrcpyActionData *action in actions) {
@@ -754,8 +754,8 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
 }
 
 - (void)screenshotButtonTapped:(UIButton *)sender {
-    NSLog(@"📷 [ScrcpyMenuView] Screenshot button tapped");
-    // 先收起菜单, 否则截到的画面里会有菜单本身
+    NSLog(@"馃摲 [ScrcpyMenuView] Screenshot button tapped");
+    // 鍏堟敹璧疯彍鍗? 鍚﹀垯鎴埌鐨勭敾闈㈤噷浼氭湁鑿滃崟鏈韩
     if (self.isExpanded) {
         [self toggleMenuExpansion];
     }
@@ -772,13 +772,13 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
 }
 
 - (void)actionsButtonTapped:(UIButton *)sender {
-    NSLog(@"🚀 [ScrcpyMenuView] Actions button tapped");
+    NSLog(@"馃殌 [ScrcpyMenuView] Actions button tapped");
     SDL_StopTextInput();
     [self showActionsMenu];
 }
 
 - (void)actionsButtonTappedViaGesture:(UITapGestureRecognizer *)gesture {
-    NSLog(@"🎯🎯🎯 [ScrcpyMenuView] actionsButtonTappedViaGesture called - GESTURE WORKING!");
+    NSLog(@"馃幆馃幆馃幆 [ScrcpyMenuView] actionsButtonTappedViaGesture called - GESTURE WORKING!");
 
     UIView *targetView = gesture.view;
     [UIView animateWithDuration:0.1 animations:^{
@@ -793,7 +793,7 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
 
     SDL_StopTextInput();
 
-    NSLog(@"🎯🎯🎯 [ScrcpyMenuView] About to call showActionsMenu via gesture");
+    NSLog(@"馃幆馃幆馃幆 [ScrcpyMenuView] About to call showActionsMenu via gesture");
     [self showActionsMenu];
 }
 
@@ -961,14 +961,14 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
         self.cleanupButton.hidden = YES;
         self.disconnectButton.hidden = NO;
 
-        LOG_POSITION(@"🐆 [ScrcpyMenuView] Scheduling VNC gestures setup with 0.3s delay");
+        LOG_POSITION(@"馃悊 [ScrcpyMenuView] Scheduling VNC gestures setup with 0.3s delay");
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-            LOG_POSITION(@"🐆 [ScrcpyMenuView] Adding VNC gestures now");
+            LOG_POSITION(@"馃悊 [ScrcpyMenuView] Adding VNC gestures now");
             [self addPinchGesture];
             [self addDragGesture];
             [self addTapGesture];
             [self setupGesturePriorities];
-            LOG_POSITION(@"🐆 [ScrcpyMenuView] VNC gestures setup completed");
+            LOG_POSITION(@"馃悊 [ScrcpyMenuView] VNC gestures setup completed");
         });
 
         LOG_POSITION(@"Configured menu for VNC device - limited buttons visible and pinch gesture enabled");
@@ -991,7 +991,7 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
     if (!self.disconnectButton.hidden) [visibleButtons addObject:self.disconnectButton];
     if (!self.rebootButton.hidden) [visibleButtons addObject:self.rebootButton];
 
-    // 勾选了上按钮条的自定义动作接在后面
+    // 鍕鹃€変簡涓婃寜閽潯鐨勮嚜瀹氫箟鍔ㄤ綔鎺ュ湪鍚庨潰
     for (UIButton *button in self.customActionButtons) {
         if (!button.hidden) [visibleButtons addObject:button];
     }
@@ -999,11 +999,8 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
     return [visibleButtons copy];
 }
 
-/// 重建自定义动作按钮。
-///
-/// 动作可能随时被新建/删除/改图标, 所以不做增量更新, 直接全部重建。
-/// 按钮的 accessibilityIdentifier 存成 "action:<uuid>", 点击分发时靠这个前缀识别。
-- (void)refreshCustomActionButtons {
+/// 閲嶅缓鑷畾涔夊姩浣滄寜閽€?///
+/// 鍔ㄤ綔鍙兘闅忔椂琚柊寤?鍒犻櫎/鏀瑰浘鏍? 鎵€浠ヤ笉鍋氬閲忔洿鏂? 鐩存帴鍏ㄩ儴閲嶅缓銆?/// 鎸夐挳鐨?accessibilityIdentifier 瀛樻垚 "action:<uuid>", 鐐瑰嚮鍒嗗彂鏃堕潬杩欎釜鍓嶇紑璇嗗埆銆?- (void)refreshCustomActionButtons {
     if (!self.customActionButtons) {
         self.customActionButtons = [NSMutableArray array];
     }
@@ -1019,7 +1016,7 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
         NSString *iconName = action.floatingMenuIcon.length > 0 ? action.floatingMenuIcon : @"bolt.fill";
         UIButton *button = [self createButtonWithIcon:iconName
                                              position:CGRectMake(0, 0, kButtonWidth, kButtonHeight)];
-        // 用前缀区分于固定按钮(固定按钮存的是图标名)
+        // 鐢ㄥ墠缂€鍖哄垎浜庡浐瀹氭寜閽?鍥哄畾鎸夐挳瀛樼殑鏄浘鏍囧悕)
         button.accessibilityIdentifier = [NSString stringWithFormat:@"action:%@", action.actionId];
         [self.menuView addSubview:button];
         [self.customActionButtons addObject:button];
@@ -1035,7 +1032,7 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
     if (!self.menuView) return;
 
     if (self.isUpdatingButtonLayout) {
-        LOG_POSITION(@"🔧 updateButtonLayout skipped - already updating");
+        LOG_POSITION(@"馃敡 updateButtonLayout skipped - already updating");
         return;
     }
     self.isUpdatingButtonLayout = YES;
@@ -1048,14 +1045,14 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
         return;
     }
 
-    LOG_POSITION(@"🔧 Starting updateButtonLayout - Device type: %ld", (long)self.currentDeviceType);
-    LOG_POSITION(@"🔧 Visible buttons count: %ld", (long)visibleButtons.count);
+    LOG_POSITION(@"馃敡 Starting updateButtonLayout - Device type: %ld", (long)self.currentDeviceType);
+    LOG_POSITION(@"馃敡 Visible buttons count: %ld", (long)visibleButtons.count);
 
     CGFloat buttonWidth = kButtonWidth;
     CGFloat buttonHeight = kButtonHeight;
     CGFloat spacing = kButtonSpacing;
 
-    // 网格排布: 每行最多 kMenuColumns 个, 不足一行时按实际个数算宽度
+    // 缃戞牸鎺掑竷: 姣忚鏈€澶?kMenuColumns 涓? 涓嶈冻涓€琛屾椂鎸夊疄闄呬釜鏁扮畻瀹藉害
     NSInteger totalCount = (NSInteger)visibleButtons.count;
     NSInteger columns = MIN(totalCount, kMenuColumns);
     NSInteger rows = (totalCount + kMenuColumns - 1) / kMenuColumns;
@@ -1076,8 +1073,7 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
                           MIN(hostView.bounds.size.width - idealMenuWidth - kMenuHorizontalPadding, menuOriginX));
     }
 
-    // 面板变高之后要保证不会顶出屏幕
-    CGFloat menuOriginY = currentFrame.origin.y;
+    // 闈㈡澘鍙橀珮涔嬪悗瑕佷繚璇佷笉浼氶《鍑哄睆骞?    CGFloat menuOriginY = currentFrame.origin.y;
     if (hostView) {
         CGFloat maxY = hostView.bounds.size.height - idealMenuHeight - kMenuVerticalPadding;
         menuOriginY = MAX(kMenuVerticalPadding, MIN(maxY, menuOriginY));
@@ -1091,7 +1087,7 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
         NSInteger row = i / kMenuColumns;
         NSInteger col = i % kMenuColumns;
 
-        // 最后一行不满时居中摆放, 免得孤零零地挂在左边
+        // 鏈€鍚庝竴琛屼笉婊℃椂灞呬腑鎽嗘斁, 鍏嶅緱瀛ら浂闆跺湴鎸傚湪宸﹁竟
         NSInteger countInThisRow = MIN(kMenuColumns, totalCount - row * kMenuColumns);
         CGFloat rowWidth = countInThisRow * buttonWidth + (countInThisRow - 1) * spacing;
         CGFloat rowStartX = (idealMenuWidth - rowWidth) / 2.0;
