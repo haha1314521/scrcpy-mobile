@@ -7,6 +7,9 @@
 
 #import "ScrcpyMenuView.h"
 
+// 只在方法签名里用到, 前向声明即可, 不必 import 整个桥接头文件
+@class ScrcpyActionData;
+
 NS_ASSUME_NONNULL_BEGIN
 
 @interface ScrcpyMenuView (Actions) <UITableViewDataSource, UITableViewDelegate>

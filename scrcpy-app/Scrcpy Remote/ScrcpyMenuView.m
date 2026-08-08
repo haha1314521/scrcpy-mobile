@@ -9,6 +9,7 @@
 #import "ScrcpyMenuView+Private.h"
 #import "ScrcpyMenuView+VNCGestures.h"
 #import "ScrcpyMenuView+Actions.h"
+#import "ScrcpyActionsBridge.h"
 #import "ScrcpyMenuView+FileTransfer.h"
 #import "Scrcpy_Remote-Swift.h"
 #import "ScrcpyMenuMaskView.h"
