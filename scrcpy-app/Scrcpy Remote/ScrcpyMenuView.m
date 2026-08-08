@@ -302,39 +302,39 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
 // 三层都用白色但透明度递增, 越往里越实, 和系统观感一致。
 + (UIImage *)assistiveTouchIconOfSize:(CGSize)size {
     UIGraphicsBeginImageContextWithOptions(size, NO, 0.0);
-    CGContextRef ctx = UIGraphicsGetCurrentContext();
 
     CGFloat w = size.width;
     CGFloat h = size.height;
-    CGFloat lineWidth = MAX(1.0, w * 0.075);
 
-    // 1) 外层圆角方框
-    CGFloat outerInset = lineWidth / 2.0;
-    CGRect outerRect = CGRectMake(outerInset, outerInset, w - outerInset * 2, h - outerInset * 2);
-    UIBezierPath *outer = [UIBezierPath bezierPathWithRoundedRect:outerRect
-                                                     cornerRadius:w * 0.30];
-    [[UIColor colorWithWhite:1.0 alpha:0.55] setStroke];
-    outer.lineWidth = lineWidth;
-    [outer stroke];
+    // 先前用描边画了一层圆角方框, 看着像相框。
+    // 系统小白点的视觉重心在中间的圆, 外层只是很淡的衬底,
+    // 所以改成: 淡底圆角方块(填充) + 圆环 + 中心圆点。
 
-    // 2) 中间圆环
-    CGFloat ringInset = w * 0.26;
-    CGRect ringRect = CGRectMake(ringInset, ringInset, w - ringInset * 2, h - ringInset * 2);
+    // 1) 淡底圆角方块(填充而非描边)
+    CGRect plateRect = CGRectMake(0, 0, w, h);
+    UIBezierPath *plate = [UIBezierPath bezierPathWithRoundedRect:plateRect
+                                                     cornerRadius:w * 0.32];
+    [[UIColor colorWithWhite:1.0 alpha:0.22] setFill];
+    [plate fill];
+
+    // 2) 圆环
+    CGFloat ringLine = MAX(1.5, w * 0.085);
+    CGFloat ringInset = w * 0.22;
+    CGRect ringRect = CGRectInset(CGRectMake(0, 0, w, h), ringInset, ringInset);
     UIBezierPath *ring = [UIBezierPath bezierPathWithOvalInRect:ringRect];
-    [[UIColor colorWithWhite:1.0 alpha:0.75] setStroke];
-    ring.lineWidth = lineWidth;
+    ring.lineWidth = ringLine;
+    [[UIColor colorWithWhite:1.0 alpha:0.92] setStroke];
     [ring stroke];
 
-    // 3) 正中实心圆点
+    // 3) 中心实心圆点
     CGFloat dotInset = w * 0.40;
-    CGRect dotRect = CGRectMake(dotInset, dotInset, w - dotInset * 2, h - dotInset * 2);
+    CGRect dotRect = CGRectInset(CGRectMake(0, 0, w, h), dotInset, dotInset);
     UIBezierPath *dot = [UIBezierPath bezierPathWithOvalInRect:dotRect];
-    [[UIColor colorWithWhite:1.0 alpha:0.95] setFill];
+    [[UIColor colorWithWhite:1.0 alpha:1.0] setFill];
     [dot fill];
 
     UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
     UIGraphicsEndImageContext();
-    (void)ctx;
     return image;
 }
 
