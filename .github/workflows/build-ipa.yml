@@ -44,7 +44,7 @@ jobs:
           path: |
             porting/libs
             scrcpy/x
-          key: porting-libs-v2-${{ hashFiles('porting/Makefile', 'porting/scripts/**', 'porting/cmake/**', '.gitmodules') }}
+          key: porting-libs-v3-${{ hashFiles('porting/Makefile', 'porting/scripts/**', 'porting/cmake/**', '.gitmodules') }}
 
       - name: Prepare libs directories
         run: |
