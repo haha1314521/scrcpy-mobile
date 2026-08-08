@@ -295,6 +295,16 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
     CGFloat ratioX = 0;
     CGFloat ratioY = 0;
 
+    // ★ 布局未就绪时(切后台/旋转的瞬间) maxOffset 会是 0,
+    //   两个 if 都进不去, ratio 保持初始值 (0,0) 并被写进 UserDefaults。
+    //   (0,0) 恰好就是屏幕正中 —— 一旦写坏, 以后每次恢复都在中间。
+    //   这才是“切后台回来悬浮球跑到中间”的真正原因, 必须在源头拦住。
+    if (maxOffsetX <= 0 && maxOffsetY <= 0) {
+        LOG_POSITION(@"Max offsets are zero (layout not ready), keep previous ratio (%.3f, %.3f)",
+                     self.positionRatio.x, self.positionRatio.y);
+        return;
+    }
+
     if (maxOffsetX > 0) {
         ratioX = (capsuleCenterX - screenCenterX) / maxOffsetX;
         ratioX = MAX(-1, MIN(1, ratioX));

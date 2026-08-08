@@ -151,16 +151,24 @@ extension View {
                                   cancelLabel: String? = nil,
                                   cancelAction: (() -> Void)? = nil) -> some View {
         self.alert(isPresented: isPresented) {
-            let messageText = message.map { Text($0) }
+            // Text(String) 那个重载不做本地化, 必须包成 LocalizedStringKey,
+            // 否则标题和按钮永远是英文(实测: 弹窗标题一直显示 Validation Error)。
+            let messageText = message.map { Text(LocalizedStringKey($0)) }
+
+            // iOS 14 下 sheet 里的 .alert(isPresented:) 有时点了按钮不会把绑定置回 false,
+            // 表现就是"弹窗关不掉"。这里在每个按钮里显式关一次。
+            let dismiss = { isPresented.wrappedValue = false }
+
             let primary: Alert.Button = primaryIsDestructive
-                ? .destructive(Text(primaryLabel), action: primaryAction)
-                : .default(Text(primaryLabel), action: primaryAction)
+                ? .destructive(Text(LocalizedStringKey(primaryLabel))) { dismiss(); primaryAction?() }
+                : .default(Text(LocalizedStringKey(primaryLabel))) { dismiss(); primaryAction?() }
+
             if let cancelLabel = cancelLabel {
-                return Alert(title: Text(title), message: messageText,
+                return Alert(title: Text(LocalizedStringKey(title)), message: messageText,
                              primaryButton: primary,
-                             secondaryButton: .cancel(Text(cancelLabel), action: cancelAction))
+                             secondaryButton: .cancel(Text(LocalizedStringKey(cancelLabel))) { dismiss(); cancelAction?() })
             }
-            return Alert(title: Text(title), message: messageText, dismissButton: primary)
+            return Alert(title: Text(LocalizedStringKey(title)), message: messageText, dismissButton: primary)
         }
     }
 }
