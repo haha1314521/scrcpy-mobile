@@ -41,15 +41,16 @@ static const CGFloat kCapsuleAlphaExpanded = 0.8f;
 static const NSInteger kMenuColumns = 3;
 static const CGFloat kMenuHeight = 60.0f;          /* 仅用于初始占位, 实际高度按行数算 */
 static const CGFloat kMenuCornerRadius = 22.0f;
-static const CGFloat kMenuHorizontalPadding = 10.0f;
-static const CGFloat kMenuVerticalPadding = 10.0f;
+static const CGFloat kMenuHorizontalPadding = 8.0f;
+static const CGFloat kMenuVerticalPadding = 8.0f;
 static const CGFloat kMenuVerticalSpacing = 10.0f;
 
 // Button Constants
-// 网格布局后不必再为了塞进一行而压缩宽度, 放回大尺寸并给出间距
-static const CGFloat kButtonWidth = 52.0f;
-static const CGFloat kButtonHeight = 60.0f;
-static const CGFloat kButtonSpacing = 6.0f;
+// 网格里按钮做成正方形。原本 52x60 是横排一条时的尺寸,
+// 高比宽还大, 摆到 3x3 网格里会显得整个面板又高又墩。
+static const CGFloat kButtonWidth = 48.0f;
+static const CGFloat kButtonHeight = 48.0f;
+static const CGFloat kButtonSpacing = 4.0f;
 
 // Animation Constants
 static const CGFloat kAnimationDuration = 0.15f;
@@ -964,9 +965,9 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
     if (!self.homeButton.hidden) [visibleButtons addObject:self.homeButton];
     if (!self.switchButton.hidden) [visibleButtons addObject:self.switchButton];
     if (!self.keyboardButton.hidden) [visibleButtons addObject:self.keyboardButton];
+    if (!self.screenshotButton.hidden) [visibleButtons addObject:self.screenshotButton];
     if (!self.actionsButton.hidden) [visibleButtons addObject:self.actionsButton];
     if (!self.clipboardSyncButton.hidden) [visibleButtons addObject:self.clipboardSyncButton];
-    if (!self.screenshotButton.hidden) [visibleButtons addObject:self.screenshotButton];
     if (!self.cleanupButton.hidden) [visibleButtons addObject:self.cleanupButton];
     if (!self.disconnectButton.hidden) [visibleButtons addObject:self.disconnectButton];
     if (!self.rebootButton.hidden) [visibleButtons addObject:self.rebootButton];
