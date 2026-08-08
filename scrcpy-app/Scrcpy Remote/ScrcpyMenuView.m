@@ -68,7 +68,7 @@ static const CGFloat kDefaultPositionRatioY = 0.8f;
 // Dynamic Island avoidance constants
 static const CGFloat kDynamicIslandWidth = 100.0f;
 
-@interface ScrcpyMenuView () <ScrcpyMenuMaskViewDelegate, ScrcpyMenuViewDelegate>
+@interface ScrcpyMenuView () <ScrcpyMenuMaskViewDelegate, ScrcpyMenuViewDelegate, UIGestureRecognizerDelegate>
 
 @property (nonatomic, strong) ScrcpyMenuMaskView *maskView;
 
@@ -522,12 +522,38 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
     dismissTapGesture.delaysTouchesBegan = NO;
     dismissTapGesture.delaysTouchesEnded = NO;
     dismissTapGesture.enabled = NO;                 // 菜单收起时不参与触摸判定
+    dismissTapGesture.delegate = self;              // 系统弹窗在时要让路, 见 shouldReceiveTouch
     self.dismissGestureRecognizer = dismissTapGesture;
     [[self activeWindow] addGestureRecognizer:dismissTapGesture];
 }
 
 - (void)handleTap:(UITapGestureRecognizer *)gesture {
     [self toggleMenuExpansion];
+}
+
+#pragma mark - UIGestureRecognizerDelegate
+
+/// 「点空白处收起菜单」的手势是加在 window 上的, 会接管整个屏幕的点击,
+/// 而它又开了 cancelsTouchesInView —— 结果连系统弹窗(重启/清理的确认框)
+/// 上的点击也被吞掉, 表现为“点确认框变成了收菜单”。
+///
+/// 这里在有系统弹窗时直接不接管触摸, 交给弹窗自己处理。
+/// 悬浮球自己开的菜单(menuView)不受影响, 点别处照旧收起。
+- (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldReceiveTouch:(UITouch *)touch {
+    if (gestureRecognizer != self.dismissGestureRecognizer) {
+        return YES;
+    }
+
+    UIWindow *window = touch.window ?: [self activeWindow];
+    UIViewController *top = window.rootViewController;
+    while (top.presentedViewController) {
+        top = top.presentedViewController;
+    }
+    if ([top isKindOfClass:[UIAlertController class]]) {
+        NSLog(@"\U0001F6AB [ScrcpyMenuView] Alert is up, dismiss gesture stands down");
+        return NO;
+    }
+    return YES;
 }
 
 - (void)handleDismissTap:(UITapGestureRecognizer *)gesture {
