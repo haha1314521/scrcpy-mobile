@@ -139,6 +139,12 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
 
 #pragma mark - Position Management
 
+/// 读取保存的悬浮球位置比例。
+///
+/// 旧版本有个 bug 会把 (0,0) 写进去(布局未就绪时保存),
+/// (0,0) 恰好是屏幕正中、会挡住画面, 正常使用不可能停在那里,
+/// 所以读到 (0,0) 一律当坏值处理, 自动回默认位置 ——
+/// 这样装了新版不用手动拖一下也能自愈。
 - (CGPoint)loadPositionRatio {
     NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
     CGFloat savedRatioX = [defaults floatForKey:kUserDefaultsPositionRatioX];
@@ -292,8 +298,11 @@ static const CGFloat kDynamicIslandWidth = 100.0f;
     LOG_POSITION(@"Max offsets: (%.1f, %.1f)", maxOffsetX, maxOffsetY);
 
     // Calculate center-relative ratio
-    CGFloat ratioX = 0;
-    CGFloat ratioY = 0;
+    // 初始值用当前已保存的比例, 而不是 0。
+    // 某个轴的 maxOffset 算不出来时(布局未就绪), 保留原值才是对的;
+    // 退回 0 就等于把球釘在屏幕正中。
+    CGFloat ratioX = self.positionRatio.x;
+    CGFloat ratioY = self.positionRatio.y;
 
     // ★ 布局未就绪时(切后台/旋转的瞬间) maxOffset 会是 0,
     //   两个 if 都进不去, ratio 保持初始值 (0,0) 并被写进 UserDefaults。
