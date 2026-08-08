@@ -11,7 +11,9 @@
 
 // System Icon Names
 NSString * const kIconCapsuleHandle = @"ellipsis";
-NSString * const kIconBackButton = @"arrow.left";
+// 返回键: U 型箭头 + 圆圈, 和旁边的 house.circle / square.circle 风格统一
+// (arrow.uturn.left.circle 属于 SF Symbols 1.0, iOS 13 就有, 不会在 iOS 14 上空白)
+NSString * const kIconBackButton = @"arrow.uturn.left.circle";
 NSString * const kIconHomeButton = @"house.circle";
 NSString * const kIconSwitchButton = @"square.circle";
 NSString * const kIconKeyboardButton = @"keyboard";
