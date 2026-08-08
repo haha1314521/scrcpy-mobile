@@ -1,0 +1,45 @@
+--- /Users/ethan/Src/github.com/scrcpy-mobile/porting/../scrcpy/server/src/main/java/com/genymobile/scrcpy/control/Controller.java	2025-11-23 15:02:15
++++ /Users/ethan/Src/github.com/scrcpy-mobile/porting/server/src/main/java/com/genymobile/scrcpy/control/Controller.java	2025-11-23 15:26:53
+@@ -91,6 +91,7 @@
+     private final Object displayDataAvailable = new Object(); // condition variable
+ 
+     private long lastTouchDown;
++    private long lastTouchCont;  // Mark: add property lastTouchCont to make touch event smooth
+     private final PointersState pointersState = new PointersState();
+     private final MotionEvent.PointerProperties[] pointerProperties = new MotionEvent.PointerProperties[PointersState.MAX_POINTERS];
+     private final MotionEvent.PointerCoords[] pointerCoords = new MotionEvent.PointerCoords[PointersState.MAX_POINTERS];
+@@ -445,6 +446,7 @@
+         if (pointerCount == 1) {
+             if (action == MotionEvent.ACTION_DOWN) {
+                 lastTouchDown = now;
++                lastTouchCont = now;
+             }
+         } else {
+             // secondary pointers must use ACTION_POINTER_* ORed with the pointerIndex
+@@ -511,8 +513,14 @@
+             }
+         }
+ 
+-        MotionEvent event = MotionEvent.obtain(lastTouchDown, now, action, pointerCount, pointerProperties, pointerCoords, 0, buttons, 1f, 1f,
++        MotionEvent event = MotionEvent.obtain(lastTouchDown, lastTouchCont, action, pointerCount, pointerProperties, pointerCoords, 0, buttons, 1f, 1f,
+                 DEFAULT_DEVICE_ID, 0, source, 0);
++        // Mark: make touch duration under 18ms to make touch event smooth
++        if (now - lastTouchCont <= 18) {
++            lastTouchCont = now;
++        } else {
++            lastTouchCont += 16.666;
++        }
+         return Device.injectEvent(event, targetDisplayId, Device.INJECT_MODE_ASYNC);
+     }
+ 
+@@ -723,9 +731,7 @@
+                 if (timeout < 0) {
+                     return null;
+                 }
+-                if (timeout > 0) {
+-                    displayDataAvailable.wait(timeout);
+-                }
++                displayDataAvailable.wait(timeout);
+                 data = displayData.get();
+             }
+ 
